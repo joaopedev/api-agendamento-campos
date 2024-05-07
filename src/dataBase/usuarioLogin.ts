@@ -1,4 +1,4 @@
-import knex from "knex";
+import { knex } from "../connectDB";
 import { UserModel } from "../models/model";
 import { comparePasswords, generateToken } from "../utils/bcrypFunctions"
 import * as nodemailer from 'nodemailer';
@@ -12,11 +12,12 @@ export class UserLogin{
       knex("usuarios")
         .select("*")
         .where("email", email)
+        .first()
         .then((usuarioBanco: UserModel | any) => {
 
-          if (!usuarioBanco) reject(new Error("Nenhum usuário encontrado com este email!"));
+          if (!usuarioBanco) return reject(new Error("Nenhum usuário encontrado com este email!"));
           
-          if (comparePasswords(senha, usuarioBanco.password)) resolve(usuarioBanco);
+          if (comparePasswords(senha, usuarioBanco.password)) return resolve(usuarioBanco);
 
           reject(new Error("Senha incorreta!"));         
         })
@@ -74,6 +75,17 @@ export class UserLogin{
     } catch (error) {
       throw new Error("Erro ao enviar o e-mail de recuperação de senha");
     }
+  }
+
+  public static async updateForgotPassword(
+    token: number
+  ): Promise<UserModel | null> {
+    const user: UserModel = await knex("usuarios")
+      .select("*")
+      .where("passwordResetToken", token)
+      .first();
+
+    return user || null;
   }
 
 }

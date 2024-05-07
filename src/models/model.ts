@@ -13,16 +13,16 @@ export enum HTTP_ERRORS {
   }
     
 export interface UserModel {
-  id: string;
+  id?: string;
   name: string;
   email: string;
   cpf: string;
   password: string;
-  passwordResetToken: string;
-  passwordResetExpires: Date;
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
 }
     
-    // export enum ErrosBDModel {
-    //   UNIQUE_VIOLATION = 23505,
-    // }
+export enum ErrosBDModel {
+  UNIQUE_VIOLATION = 23505,
+}
     
