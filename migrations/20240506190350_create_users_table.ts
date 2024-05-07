@@ -7,6 +7,8 @@ export async function up(knex: Knex): Promise<void> {
     .createTable("usuarios", function (table) {
       table.uuid("id").defaultTo(knex.raw("uuid_generate_v4()")).index().unique();
       table.string("email", 320).notNullable().index().unique();
+      table.string("cpf", 320).notNullable().index().unique();
+      table.string("name", 320).notNullable();
       table.string("password", 255).notNullable();
       table.timestamp("created_at").defaultTo(knex.fn.now());
       table.timestamp("updated_at").defaultTo(knex.fn.now());
