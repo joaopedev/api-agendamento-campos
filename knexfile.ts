@@ -3,11 +3,13 @@ require("dotenv").config();
 module.exports = {
   development: {
     client: "pg",
+    useNullAsDefault: true,
     connection: {
       host: process.env.PGHOST,
       user: process.env.PGUSER,
       password: process.env.PGPASSWORD,
       database: process.env.PGDATABASE,
+      port: Number(process.env.PGPORT),
     },
     migrations: {
       extension: "ts",
@@ -20,6 +22,7 @@ module.exports = {
     ssl: {
       rejectUnauthorized: false,
     },
+    useNullAsDefault: true,
     connection: {
       host: process.env.PGHOST,
       user: process.env.PGUSER,

@@ -1,5 +1,5 @@
 import { UserModel } from './../models/model';
-import knex from "knex";
+import { knex } from "../connectDB";
 
 export class Usuario {
 
@@ -10,7 +10,13 @@ export class Usuario {
   }
 
   public static async getUserById(id: string): Promise<UserModel | null> {
-    const user = await knex("usuarios").select("*").where("id", id).first();
+    const user: UserModel = await knex("usuarios").select("*").where("id", id).first();
+
+    return user || null;
+  }
+
+  public static async getUserByEmail(email: string): Promise<UserModel | null> {
+    const user: UserModel = await knex("usuarios").select("*").where("email", email).first();
 
     return user || null;
   }
@@ -21,16 +27,18 @@ export class Usuario {
     }
 
     try {
+      console.log("chegou aqui")
       const existingUser = await knex("usuarios")
         .where({ email: usuario.email })
         .first();
 
       if (existingUser) {
         throw new Error("Este email já está em uso");
-      } else {
-        await knex("usuarios").insert(usuario);
-        return usuario;
       }
+
+      await knex("usuarios").insert(usuario);
+      return usuario;
+      
     } catch (error) {
       throw error;
     }
@@ -39,7 +47,11 @@ export class Usuario {
   public static async updateUser(
     usuario: UserModel
   ): Promise<boolean> {
+    
+    if(usuario.id == undefined) return false;
+
     const userBanco = this.getUserById(usuario.id);
+    
     if(!userBanco) return false;
 
     const user = await knex("usuarios")
