@@ -1,24 +1,36 @@
-import { UserModel } from './../models/model';
+import { Cras, TipoUsuario, UserModel } from './../models/model';
 import { knex } from "../connectDB";
 
 export class Usuario {
 
   public static async getUsers(): Promise<UserModel[]> {
-    let users = knex("usuarios").select("*").orderBy("id");
+    let users = await knex("usuarios").select("*").orderBy("id");
     
     return users;
   }
 
-  public static async getUserById(id: string): Promise<UserModel | null> {
-    const user: UserModel = await knex("usuarios").select("*").where("id", id).first();
-
-    return user || null;
+  public static async getFuncionariosByCras(cras: Cras): Promise<UserModel[]> {
+    let users = await knex("usuarios").select("*").where("cras", cras).andWhere("tipoUsuario", TipoUsuario.admin).orderBy("id");
+    
+    return users;
   }
 
-  public static async getUserByEmail(email: string): Promise<UserModel | null> {
+  public static async getUserById(id: string): Promise<UserModel> {
+    const user: UserModel = await knex("usuarios").select("*").where("id", id).first();
+
+    return user;
+  }
+
+  public static async getUserByEmail(email: string): Promise<UserModel> {
     const user: UserModel = await knex("usuarios").select("*").where("email", email).first();
 
-    return user || null;
+    return user;
+  }
+
+  public static async getUserByCpf(cpf: string): Promise<UserModel> {
+    const user: UserModel = await knex("usuarios").select("*").where("cpf", cpf).first();
+
+    return user;
   }
 
   public static async createUser(usuario: UserModel): Promise<UserModel> {
@@ -27,13 +39,12 @@ export class Usuario {
     }
 
     try {
-      console.log("chegou aqui")
       const existingUser = await knex("usuarios")
-        .where({ email: usuario.email })
+        .where({ cpf: usuario.cpf })
         .first();
 
       if (existingUser) {
-        throw new Error("Este email já está em uso");
+        throw new Error("Este cpf já possui cadastro!");
       }
 
       await knex("usuarios").insert(usuario);
@@ -46,31 +57,40 @@ export class Usuario {
 
   public static async updateUser(
     usuario: UserModel
-  ): Promise<boolean> {
-    
-    if(usuario.id == undefined) return false;
+  ): Promise<UserModel> {
 
-    const userBanco = this.getUserById(usuario.id);
-    
-    if(!userBanco) return false;
+    const idUsuario = usuario.id ?? "";
+    let userBanco: UserModel = await this.getUserById(idUsuario);
 
-    const user = await knex("usuarios")
-      .where("id", usuario.id)
-      .update({ usuario });
+    if(!userBanco) throw new Error("O usuário informado não existe!");;
 
-    return user > 0;
+    userBanco = { ...userBanco, ...usuario };
+
+    try {
+      
+      await knex("usuarios")
+        .where("id", userBanco.id)
+        .first()
+        .update(userBanco);
+     
+      return userBanco;
+
+    } catch (error) {
+      throw error
+    }
   }
 
-  public static async deleteUser(id_usuario: string): Promise<boolean> {
-    const userBanco = this.getUserById(id_usuario);
+  public static async deleteUser(cpf: string): Promise<boolean> {
+    const userBanco: UserModel = await this.getUserByCpf(cpf);
     if(!userBanco) return false;
 
     const user = await knex("usuarios")
       .select("usuarios")
-      .where("id", id_usuario)
+      .where("cpf", userBanco.cpf)
+      .first()
       .delete();
 
-    return user > 0;
+    return !!user;
   }
 
 }

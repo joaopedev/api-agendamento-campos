@@ -7,22 +7,27 @@ require("dotenv").config();
 
 export class UserLogin{
 
-  public static loginUser(email: string, senha: string): Promise<UserModel> {
+  public static async loginUser(cpf: string, senha: string): Promise<UserModel> {
     return new Promise((resolve, reject) => {
       knex("usuarios")
         .select("*")
-        .where("email", email)
+        .where("cpf", cpf)
         .first()
         .then((usuarioBanco: UserModel | any) => {
 
-          if (!usuarioBanco) return reject(new Error("Nenhum usuário encontrado com este email!"));
-          
-          if (comparePasswords(senha, usuarioBanco.password)) return resolve(usuarioBanco);
+          if (!usuarioBanco) return reject(new Error("Nenhum usuário encontrado com este cpf!"));
 
-          reject(new Error("Senha incorreta!"));         
+          const user: UserModel = usuarioBanco;
+
+          if (!comparePasswords(senha, user.password)) return reject(new Error("Senha incorreta!"));
+            
+          return resolve(user);
+
         })
         .catch((erro: any) => {
           reject(erro);
+        }).finally(() => {
+          knex.destroy();
         });
     });
   }
