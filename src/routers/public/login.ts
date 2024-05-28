@@ -10,7 +10,7 @@ require("dotenv").config();
 export = (app: Application) => {
   app.post(
     "/login",
-    body("email").notEmpty(),
+    body("cpf").notEmpty(),
     body("password").exists(),
     async (req: Request, res: Response, next: NextFunction) => {
         const errors = validationResult(req);
@@ -20,14 +20,14 @@ export = (app: Application) => {
             next(createError(HTTP_ERRORS.BAD_REQUEST, message[0]));
         }
 
-        const email: string = req.body.email;
+        const cpf: string = req.body.cpf;
         const password: string = req.body.password;
 
-        if (!email) {
-            return next(createError(HTTP_ERRORS.BAD_REQUEST, "Email não pode ser nulo"));
+        if (!cpf) {
+            return next(createError(HTTP_ERRORS.BAD_REQUEST, "cpf não pode ser vazio!"));
         }
 
-        await UserLogin.loginUser(email, password)
+        await UserLogin.loginUser(cpf, password)
             .then((usuario) => {
                 if (!usuario) {
                     return res.status(401).json({ message: "Credenciais inválidas" });
