@@ -64,7 +64,7 @@ export class Usuario {
 
     if(!userBanco) throw new Error("O usuário informado não existe!");;
 
-    userBanco = { ...userBanco, ...usuario };
+    userBanco = { ...usuario };
 
     try {
       

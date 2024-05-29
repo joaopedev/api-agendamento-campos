@@ -91,5 +91,69 @@ export = (app: Application) => {
           console.error(erro);
           next(createError(HTTP_ERRORS.ERRO_INTERNO, tratarErro(erro)));
       }); 
-  });
+    }
+  );
+
+  app.put(
+    "/private/updateScheduling/:id",
+    async (req: Request, res: Response, next: NextFunction) => {
+
+      let agendamento: SchedulingModel = await Scheduling.getScheduleById(req.params.id);
+      
+      if(!agendamento) return next(createError(HTTP_ERRORS.BAD_REQUEST, "Id de agendamento invalido!"));
+      
+      agendamento = { ...req.body };
+
+      if (!agendamento.usuarioId || !agendamento.data_hora) {
+        const erro = agendamento.usuarioId ? "data_hora" : "usuarioId"; 
+        return next(
+          createError(HTTP_ERRORS.BAD_REQUEST, `${erro} inválido`)
+        );
+      }
+
+      await Scheduling.updateSchedule(agendamento)
+      .then(() => {
+        res.json({ message: "Agendamento marcado com sucesso!" });
+      })
+      .catch((erro) => {
+          console.error(erro);
+          next(createError(HTTP_ERRORS.ERRO_INTERNO, tratarErro(erro)));
+      }); 
+
+    }
+  );
+
+  app.delete(
+    "/private/deleteScheduling/:id",
+    async (req: Request, res: Response, next: NextFunction) => {
+
+      let agendamentoDelete: SchedulingModel = await Scheduling.getScheduleById(req.params.id);
+      let usuario: UserModel = await Usuario.getUserById(req.body.usuarioId);
+      
+      if(!usuario.id || !agendamentoDelete.id){
+        const erro = usuario ? "o agendamentoId é" : "o usuarioId é"; 
+        return next(
+          createError(HTTP_ERRORS.BAD_REQUEST, `${erro} inválido`)
+        );
+      }
+      
+      const usuarioProprietario = usuario.id == agendamentoDelete.usuarioId;
+
+      if((usuario.tipoUsuario == TipoUsuario.comum && !usuarioProprietario) || usuario.tipoUsuario != TipoUsuario.comum) 
+        return next(createError(HTTP_ERRORS.BAD_REQUEST, "Você não tem permissão para excluir esse agendamento!"));
+
+      await Scheduling.deleteSchedule(agendamentoDelete.id)
+        .then((result) => {
+          if (result) {
+            res.json({ message: "Dados atualizados com sucesso" });
+          } else {
+            res.status(404).json(result);
+          }
+        })
+        .catch((erro) => {
+          next(createError(HTTP_ERRORS.ERRO_INTERNO, erro));
+        });
+    }
+  );
+
 }
