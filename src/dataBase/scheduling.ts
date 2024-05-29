@@ -1,4 +1,4 @@
-import { UserModel, SchedulingModel, Cras, HTTP_ERRORS } from './../models/model';
+import { UserModel, SchedulingModel, Cras, HTTP_ERRORS, Status } from './../models/model';
 import { knex } from "../connectDB";
 import { Usuario } from "./usuario";
 import createError from "http-errors";
@@ -83,13 +83,20 @@ export class Scheduling {
 
     public static async updateSchedule(agendamento: SchedulingModel): Promise<SchedulingModel> {
         if (!agendamento.id) throw new Error("Id de agendamento inválido!");
+        
+        if (agendamento.status == Status.realizado || agendamento.status == Status.ausente) {
+            const erro = agendamento.status == Status.realizado ? "Ausente" : "Realizado";             
+            throw new Error(`O serviço para esse agendamento já foi concluído devido ao seu status ${erro}!`);
+        } 
 
         try {
 
             let agendamentoBanco = await this.getScheduleById(agendamento.id);
             if (!agendamentoBanco) throw new Error("Esse agendamento não existe!");
-
-            agendamentoBanco = { ...agendamentoBanco, ...agendamento };
+            
+            agendamentoBanco = { ...agendamento };
+            
+            if (!agendamentoBanco.cras) throw new Error("É obrigatório escolher o cras do agendamento!");
 
             await knex("scheduling")
                 .where("id", agendamentoBanco.id)

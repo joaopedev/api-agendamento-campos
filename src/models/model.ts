@@ -20,7 +20,7 @@ export interface UserModel {
   cpf: string,
   dataNascimento: string,
   password: string,
-  telefone: number,
+  telefone: string,
   endereco: Endereco
   tipoUsuario: TipoUsuario,
   cras: Cras,
@@ -49,7 +49,14 @@ export interface SchedulingModel {
   description: string,
   duracaoEstimada: Date,
   data_hora: Date,
-  cras: Cras
+  cras: Cras,
+  status: Status
+}
+
+export enum Status {
+  realizado = 1,
+  pendente,
+  ausente
 }
 
 export enum Cras {
