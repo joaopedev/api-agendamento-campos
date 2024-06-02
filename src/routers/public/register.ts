@@ -10,7 +10,7 @@ import { Usuario } from "../../dataBase/usuario";
 export = (app: Application) => {
   app.post(
     "/registerUsers",
-    body("cpf").isEmpty(),
+    body("cpf").notEmpty(),
     body("password")
       .exists()
       .isLength({ min: 8 })

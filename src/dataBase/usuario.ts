@@ -9,26 +9,42 @@ export class Usuario {
     return users;
   }
 
-  public static async getFuncionariosByCras(cras: Cras): Promise<UserModel[]> {
-    let users = await knex("usuarios").select("*").where("cras", cras).andWhere("tipoUsuario", TipoUsuario.admin).orderBy("id");
+  public static async getFuncionariosByCras(cras: number): Promise<UserModel[] | null> {
+    let funcionarios: UserModel[] | null; 
     
-    return users;
+    if (cras == undefined) return funcionarios = null;
+
+    funcionarios = await knex("usuarios").select("*").where("cras", cras).andWhere("tipoUsuario", TipoUsuario.admin).orderBy("id");
+    
+    return funcionarios;
   }
 
-  public static async getUserById(id: string): Promise<UserModel> {
-    const user: UserModel = await knex("usuarios").select("*").where("id", id).first();
+  public static async getUserById(id: string): Promise<UserModel | null> {
+    let user: UserModel | null;
+
+    if (id == undefined) return user = null;
+
+    user = await knex("usuarios").select("*").where("id", id).first();  
 
     return user;
   }
 
-  public static async getUserByEmail(email: string): Promise<UserModel> {
-    const user: UserModel = await knex("usuarios").select("*").where("email", email).first();
+  public static async getUserByEmail(email: string): Promise<UserModel | null> {
+    let user: UserModel | null; 
+    
+    if (email == undefined) return user = null;
+
+    user = await knex("usuarios").select("*").where("email", email).first();
 
     return user;
   }
 
-  public static async getUserByCpf(cpf: string): Promise<UserModel> {
-    const user: UserModel = await knex("usuarios").select("*").where("cpf", cpf).first();
+  public static async getUserByCpf(cpf: string): Promise<UserModel | null> {
+    let user: UserModel | null;
+    
+    if (cpf == undefined) return user = null;
+
+    user = await knex("usuarios").select("*").where("cpf", cpf).first();
 
     return user;
   }
@@ -39,6 +55,7 @@ export class Usuario {
     }
 
     try {
+
       const existingUser = await knex("usuarios")
         .where({ cpf: usuario.cpf })
         .first();
@@ -60,11 +77,11 @@ export class Usuario {
   ): Promise<UserModel> {
 
     const idUsuario = usuario.id ?? "";
-    let userBanco: UserModel = await this.getUserById(idUsuario);
+    let userBanco: UserModel | null = await this.getUserById(idUsuario);
 
     if(!userBanco) throw new Error("O usuário informado não existe!");;
 
-    userBanco = { ...usuario };
+    userBanco = { ...userBanco, ...usuario };
 
     try {
       
@@ -81,16 +98,23 @@ export class Usuario {
   }
 
   public static async deleteUser(cpf: string): Promise<boolean> {
-    const userBanco: UserModel = await this.getUserByCpf(cpf);
+    const userBanco: UserModel | null = await this.getUserByCpf(cpf);
+
     if(!userBanco) return false;
 
-    const user = await knex("usuarios")
-      .select("usuarios")
-      .where("cpf", userBanco.cpf)
-      .first()
-      .delete();
+    try {
+      
+      const user = await knex("usuarios")
+        .select("usuarios")
+        .where("cpf", userBanco.cpf)
+        .first()
+        .delete();
+  
+      return !!user;
 
-    return !!user;
+    } catch (error) {
+      throw error;
+    }
   }
 
 }

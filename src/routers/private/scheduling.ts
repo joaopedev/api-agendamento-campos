@@ -1,10 +1,11 @@
 import { Application, NextFunction, Request, Response } from "express";
-import { HTTP_ERRORS, SchedulingModel, TipoUsuario, UserModel } from "../../models/model";
+import {  Cras, HTTP_ERRORS, SchedulingModel, TipoUsuario, UserModel } from "../../models/model";
 import { Usuario } from "../../dataBase/usuario";
 import { body, validationResult } from "express-validator";
 import createError from "http-errors";
 import { Scheduling } from "../../dataBase/scheduling";
 import { tratarErro } from "../../utils/errors";
+import knex from "knex";
 
 export = (app: Application) => {
 
@@ -29,7 +30,7 @@ export = (app: Application) => {
     "/private/userScheduling/:userId",
     async (req: Request, res: Response, next: NextFunction) => {
 
-      await Scheduling.getScheduleByUserId(req.body.userId)
+      await Scheduling.getScheduleByUserId(req.params.userId)
         .then((agendamentos) => {
           res.json({
             message: "agendamentos recuperados com sucesso",
@@ -46,7 +47,7 @@ export = (app: Application) => {
     "/private/crasScheduling/:cras",
     async (req: Request, res: Response, next: NextFunction) => {
 
-      await Scheduling.getSchedulesByCras(req.body.cras)
+      await Scheduling.getSchedulesByCras(Number(req.params.cras))
         .then((agendamentos) => {
           res.json({
             message: "agendamentos recuperados com sucesso",
@@ -54,14 +55,14 @@ export = (app: Application) => {
           });
         })
         .catch((erro) => {
-          next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS, erro));
+          next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS, "O cras informado não existe!"));
         });
     }
   );
 
   app.post(
     "/private/registerScheduling",
-    body("usuarioId").notEmpty(),
+    body("usuario_id").notEmpty(),
     body("data_hora").notEmpty(),
     body("cras").notEmpty(),
 
@@ -69,23 +70,29 @@ export = (app: Application) => {
       const errors = validationResult(req);
 
       if (!errors.isEmpty()) {
+        const msgBugada = JSON.stringify(errors.array()[0]);
+        const msgFormatada = msgBugada.substring(1, msgBugada.length - 1).replace(/\\/g, '');
+
         return next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS,
-          JSON.stringify(errors.array()))
+          msgFormatada)
         );
       }
       
       const agendamento: SchedulingModel = { ...req.body };
+      
+      agendamento.data_hora = new Date(req.body.data_hora);
+      agendamento.duracao_estimada = new Date(req.body.duracao_estimada);
 
-      if (!agendamento.usuarioId || !agendamento.data_hora) {
-        const erro = agendamento.usuarioId ? "data_hora" : "usuarioId"; 
+      if (!agendamento.usuario_id || !agendamento.data_hora) {
+        const erro = agendamento.usuario_id ? "data_hora" : "usuario_id"; 
         return next(
           createError(HTTP_ERRORS.BAD_REQUEST, `${erro} inválido`)
         );
       }
 
       await Scheduling.createSchedule(agendamento)
-      .then(() => {
-        res.json({ message: "Agendamento marcado com sucesso!" });
+      .then((result) => {
+        res.json({ message: "Agendamento realizado com sucesso!", result });
       })
       .catch((erro) => {
           console.error(erro);
@@ -99,21 +106,27 @@ export = (app: Application) => {
     async (req: Request, res: Response, next: NextFunction) => {
 
       let agendamento: SchedulingModel = await Scheduling.getScheduleById(req.params.id);
-      
-      if(!agendamento) return next(createError(HTTP_ERRORS.BAD_REQUEST, "Id de agendamento invalido!"));
-      
-      agendamento = { ...req.body };
-
-      if (!agendamento.usuarioId || !agendamento.data_hora) {
-        const erro = agendamento.usuarioId ? "data_hora" : "usuarioId"; 
+      let usuario: UserModel | null = await Usuario.getUserById(req.body.usuario_id);
+      console.log(usuario)
+      if(!usuario || !agendamento.id){
+        console.log("entrou aqui")
+        const erro = usuario ? "o agendamentoId é" : "o usuario_id é"; 
         return next(
           createError(HTTP_ERRORS.BAD_REQUEST, `${erro} inválido`)
         );
       }
+      
+      agendamento = { ...agendamento ,...req.body };
+
+      const usuarioProprietario = usuario.id == agendamento.usuario_id;
+
+      //Validação de usuário para atualização do agendamento.
+      if(usuario.tipoUsuario == TipoUsuario.comum && !usuarioProprietario) 
+        return next(createError(HTTP_ERRORS.BAD_REQUEST, "Você não tem permissão para alterar esse agendamento!"));
 
       await Scheduling.updateSchedule(agendamento)
       .then(() => {
-        res.json({ message: "Agendamento marcado com sucesso!" });
+        res.json({ message: "Agendamento atualizado com sucesso!" });
       })
       .catch((erro) => {
           console.error(erro);
@@ -128,24 +141,25 @@ export = (app: Application) => {
     async (req: Request, res: Response, next: NextFunction) => {
 
       let agendamentoDelete: SchedulingModel = await Scheduling.getScheduleById(req.params.id);
-      let usuario: UserModel = await Usuario.getUserById(req.body.usuarioId);
+      let usuario: UserModel | null = await Usuario.getUserById(req.body.usuario_id);
       
-      if(!usuario.id || !agendamentoDelete.id){
-        const erro = usuario ? "o agendamentoId é" : "o usuarioId é"; 
+      if(!usuario || !agendamentoDelete.id){
+        const erro = usuario ? "o agendamentoId é" : "o usuario_id é"; 
         return next(
           createError(HTTP_ERRORS.BAD_REQUEST, `${erro} inválido`)
         );
       }
       
-      const usuarioProprietario = usuario.id == agendamentoDelete.usuarioId;
+      const usuarioProprietario = usuario.id == agendamentoDelete.usuario_id;
 
-      if((usuario.tipoUsuario == TipoUsuario.comum && !usuarioProprietario) || usuario.tipoUsuario != TipoUsuario.comum) 
+      //Validação de usuário para exclusão do agendamento.
+      if(usuario.tipoUsuario == TipoUsuario.comum && !usuarioProprietario) 
         return next(createError(HTTP_ERRORS.BAD_REQUEST, "Você não tem permissão para excluir esse agendamento!"));
 
       await Scheduling.deleteSchedule(agendamentoDelete.id)
         .then((result) => {
           if (result) {
-            res.json({ message: "Dados atualizados com sucesso" });
+            res.json({ message: "O agendamento foi excluído!" });
           } else {
             res.status(404).json(result);
           }

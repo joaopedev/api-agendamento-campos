@@ -81,12 +81,13 @@ export = (app: Application) => {
       }
     );
 
+    //A ROTA DE DELETE ESTÁ IMPLEMENTADA PORÉM, A EXCLUSÃO ATUAL É SOMENTE LÓGICA: TROCANDO O STATUS PARA 0 'CANCELADO'.
     app.delete(
       "/private/deleteAccount/:id",
       async (req: Request, res: Response, next: NextFunction) => {
 
-        let usuarioDelete: UserModel | null = await Usuario.getUserById(req.params.id);
-        let usuarioAdmin: UserModel | null = await Usuario.getUserById(req.params.adminId);
+        let usuarioDelete: UserModel| null = await Usuario.getUserById(req.params.id);
+        let usuarioAdmin: UserModel | null= await Usuario.getUserById(req.params.adminId);
         
         if(!usuarioDelete) return next(createError(HTTP_ERRORS.BAD_REQUEST, "Id para exclusão Invalido!"));
 
