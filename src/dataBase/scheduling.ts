@@ -11,9 +11,9 @@ export class Scheduling {
         return agendamentos;
     }
 
-    public static async getSchedulesByCras(cras: Cras): Promise<SchedulingModel[]> {
+    public static async getSchedulesByCras(cras: number): Promise<SchedulingModel[] | null> {
         let agendamentos = await knex("scheduling").select("*").where("cras", cras).orderBy("id");
-        
+        console.log(agendamentos);
         return agendamentos;
     }
 
@@ -23,37 +23,59 @@ export class Scheduling {
         return agendamento;
     }
 
-    public static async getScheduleByUserId(usuarioId: string): Promise<SchedulingModel> {
-        let agendamento = await knex("scheduling").select("*").where("usuarioId", usuarioId).first();
+    public static async getScheduleByUserId(usuario_id: string): Promise<SchedulingModel> {
+        let agendamento = await knex("scheduling").select("*").where("usuario_id", usuario_id).first();
 
         return agendamento;
     }
 
-    private static async isSchedulingUserConflict(usuarioId: string, data_hora: Date): Promise<boolean> {
-        const existingScheduling = await knex('schedules')
-          .where('usuarioId', usuarioId)
-          .whereRaw('DATE(data_hora) = ?', [data_hora.toISOString().substring(0, 10)])
-          .first();
-      
-        return !!existingScheduling;
+    private static async isSchedulingUserConflict(usuario_id: string, data_hora: Date): Promise<boolean> {
+        // Converter a data para o formato YYYY-MM-DD
+        const data_hora_iso = data_hora.toISOString().substring(0, 10);
+        try {
+            
+            const existingScheduling = await knex('scheduling')
+              .where('usuario_id', usuario_id)
+              .whereRaw('DATE(data_hora) = ?', [data_hora_iso])
+              .first();
+          
+            return !!existingScheduling;
+        } catch (error) {
+            console.error('Erro ao executar a consulta:', error);
+            throw new Error('Erro ao executar a consulta no agendamento do usuário!.');
+        }
     }
 
     private static async isSchedulingDayConflict(cras: Cras, data_hora: Date): Promise<boolean> {
-        const numAgendamentos = await knex('schedules')
-        .where('cras', cras)
-        .whereRaw('DATE(data_hora) = ?', [data_hora.toISOString().substring(0, 10)]) // Filtrar pela data
-        .whereRaw('HOUR(data_hora) = ?', [data_hora.getHours()]) // Filtrar pela hora
-        .count('* as count')
-        .first();
+        // Converter a data para o formato YYYY-MM-DD
+        const data_hora_iso = data_hora.toISOString().substring(0, 10);
+         // Obtendo a hora da data
+        const hora = data_hora.getHours();
 
-        if (numAgendamentos === undefined) {
-            throw new Error('Erro ao contar agendamentos.');
+        try {
+            
+            const numAgendamentos = await knex('scheduling')
+            .where('cras', cras)
+            .whereRaw('DATE(data_hora) = ?', [data_hora_iso]) // Filtra pela data
+            .whereRaw('EXTRACT(HOUR FROM data_hora) = ?', [hora]) // Filtra pela hora
+            .count({ count: '*' })
+            .first();
+    
+            if (numAgendamentos === undefined) {
+                throw new Error('Erro ao contar agendamentos.');
+            }
+    
+            const numAgendamentosCount = parseInt(String(numAgendamentos.count));
+            const funcionarios: UserModel[] | null = await Usuario.getFuncionariosByCras(cras);
+            if (funcionarios == null) throw new Error('O cras informado é inválido ou não possuí funcionários cadastrados!');
+
+
+            return numAgendamentosCount >= funcionarios.length;
+
+        } catch (error) {
+            console.error('Erro ao executar a consulta:', error);
+            throw new Error('Erro ao executar a consulta no agendamento para a data informada!.');
         }
-
-        const numAgendamentosCount = parseInt(String(numAgendamentos.count));
-        const funcionarios: UserModel[] = await Usuario.getFuncionariosByCras(cras);
-      
-        return numAgendamentosCount >= funcionarios.length;
     }
 
     public static async createSchedule(agendamento: SchedulingModel): Promise<SchedulingModel> {
@@ -61,15 +83,15 @@ export class Scheduling {
    
         try {
 
-            let existeAgendamento = await this.isSchedulingUserConflict(agendamento.usuarioId, agendamento.data_hora)
+            let existeAgendamento = await this.isSchedulingUserConflict(agendamento.usuario_id, agendamento.data_hora)
 
             if(existeAgendamento) {
                 throw new Error((HTTP_ERRORS.CONFLICT, "Você já possuí agendamento para este dia!"));
             }
 
-            const temVaga = await this.isSchedulingDayConflict(agendamento.cras, agendamento.data_hora);
+            const NaotemVaga = await this.isSchedulingDayConflict(agendamento.cras, agendamento.data_hora);
 
-            if(temVaga) {
+            if(NaotemVaga) {
                 throw new Error("Este horário escolhido não está disponível, por favor escolha outro horário!");
             }
 
@@ -94,7 +116,7 @@ export class Scheduling {
             let agendamentoBanco = await this.getScheduleById(agendamento.id);
             if (!agendamentoBanco) throw new Error("Esse agendamento não existe!");
             
-            agendamentoBanco = { ...agendamento };
+            agendamentoBanco = { ...agendamentoBanco, ...agendamento };
             
             if (!agendamentoBanco.cras) throw new Error("É obrigatório escolher o cras do agendamento!");
 
@@ -110,17 +132,24 @@ export class Scheduling {
         }
     }
 
+    //ESTÁ IMPLEMENTADO PORÉM NÃO DEVE SER USADO POR ENQUANTO, SOMENTE EXCLUSÃO LÓGICA NO BANCO COM STATUS 0 'CANCELADO'
     public static async deleteSchedule(id: string): Promise<boolean> {
         const agendamento = await this.getScheduleById(id);
         if(!agendamento) return false;
+
+        try {
+            
+            const retorno = await knex("scheduling")
+              .select("scheduling")
+              .where("id", id)
+              .first()
+              .delete();
+        
+            return !!retorno;
+        } catch (error) {
+            throw error;
+        }
     
-        const retorno = await knex("scheduling")
-          .select("usuarios")
-          .where("id", id)
-          .first()
-          .delete();
-    
-        return !!retorno;
       }
 
 

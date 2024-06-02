@@ -44,17 +44,18 @@ export enum TipoUsuario {
 export interface SchedulingModel {
   id?: string,
   name: string,
-  usuarioId: string,
+  usuario_id: string,
   servico: TipoServico,
   description: string,
-  duracaoEstimada: Date,
+  duracao_estimada: Date,
   data_hora: Date,
   cras: Cras,
   status: Status
 }
 
 export enum Status {
-  realizado = 1,
+  cancelado = 0,
+  realizado,
   pendente,
   ausente
 }
@@ -73,6 +74,21 @@ export enum Cras {
   MORRO_DO_COCO,
   TAPERA
 }
+
+// export enum Cras {
+//   "CODIN" = 1,
+//   "CUSTODÓPOLIS" = 2,
+//   "JARDIM_CARIOCA" = 3,
+//   "PARQUE_ESPLANADA" = 4,
+//   "CHATUBA" = 5,
+//   "MATADOURO" = 6,
+//   "PENHA" = 7,
+//   "GOITACAZES" = 8,
+//   "PARQUE_GUARU" = 9,
+//   "TRAVESSAO" = 10,
+//   "MORRO_DO_COCO" = 11,
+//   "TAPERA" = 12
+// }
     
 export enum ErrosBDModel {
   UNIQUE_VIOLATION = 23505,
@@ -82,4 +98,3 @@ export enum TipoServico {
   cadastramento = 1,
   outros
 }
-    
