@@ -131,13 +131,12 @@ export = (app: Application) => {
         );
       }
       
-      agendamento = { ...agendamento ,...req.body };
-
       const usuarioProprietario = usuario.id == agendamento.usuario_id;
 
-      //Validação de usuário para atualização do agendamento.
       if(usuario.tipoUsuario == TipoUsuario.comum && !usuarioProprietario) 
         return next(createError(HTTP_ERRORS.BAD_REQUEST, "Você não tem permissão para alterar esse agendamento!"));
+
+      agendamento = { ...agendamento ,...req.body };
 
       await Scheduling.updateSchedule(agendamento)
       .then(() => {
