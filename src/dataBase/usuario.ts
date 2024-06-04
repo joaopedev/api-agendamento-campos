@@ -4,47 +4,41 @@ import { knex } from "../connectDB";
 export class Usuario {
 
   public static async getUsers(): Promise<UserModel[]> {
+
     let users = await knex("usuarios").select("*").orderBy("id");
+    if(!users || users.length <= 0) throw new Error("Náo há nenhum usuário cadastrado!");
     
     return users;
   }
 
-  public static async getFuncionariosByCras(cras: number): Promise<UserModel[] | null> {
-    let funcionarios: UserModel[] | null; 
-    
-    if (cras == undefined) return funcionarios = null;
+  public static async getFuncionariosByCras(cras: number): Promise<UserModel[]> {
 
-    funcionarios = await knex("usuarios").select("*").where("cras", cras).andWhere("tipoUsuario", TipoUsuario.admin).orderBy("id");
+    const funcionarios: UserModel[]  = await knex("usuarios").select("*").where("cras", cras).andWhere("tipoUsuario", TipoUsuario.admin).orderBy("id");
+    if(!funcionarios || funcionarios.length <= 0) throw new Error(`Náo há nenhum funcionário cadastrado no Cras ${Cras[cras]}!`);
     
     return funcionarios;
   }
 
-  public static async getUserById(id: string): Promise<UserModel | null> {
-    let user: UserModel | null;
+  public static async getUserById(id: string): Promise<UserModel> {
 
-    if (id == undefined) return user = null;
-
-    user = await knex("usuarios").select("*").where("id", id).first();  
+    const user:UserModel  = await knex("usuarios").select("*").where("id", id).first();  
+    if(!user) throw new Error("Náo há nenhum usuário com este Id!");
 
     return user;
   }
 
-  public static async getUserByEmail(email: string): Promise<UserModel | null> {
-    let user: UserModel | null; 
-    
-    if (email == undefined) return user = null;
+  public static async getUserByEmail(email: string): Promise<UserModel> {
 
-    user = await knex("usuarios").select("*").where("email", email).first();
+    const user = await knex("usuarios").select("*").where("email", email).first();
+    if(!user) throw new Error("Náo há nenhum usuário com este email!");
 
     return user;
   }
 
-  public static async getUserByCpf(cpf: string): Promise<UserModel | null> {
-    let user: UserModel | null;
-    
-    if (cpf == undefined) return user = null;
+  public static async getUserByCpf(cpf: string): Promise<UserModel> {
 
-    user = await knex("usuarios").select("*").where("cpf", cpf).first();
+    const user = await knex("usuarios").select("*").where("cpf", cpf).first();
+    if(!user) throw new Error("Náo há nenhum usuário com este CPF!");
 
     return user;
   }
@@ -77,7 +71,7 @@ export class Usuario {
   ): Promise<UserModel> {
 
     const idUsuario = usuario.id ?? "";
-    let userBanco: UserModel | null = await this.getUserById(idUsuario);
+    let userBanco: UserModel = await this.getUserById(idUsuario);
 
     if(!userBanco) throw new Error("O usuário informado não existe!");;
 
@@ -98,7 +92,7 @@ export class Usuario {
   }
 
   public static async deleteUser(cpf: string): Promise<boolean> {
-    const userBanco: UserModel | null = await this.getUserByCpf(cpf);
+    const userBanco: UserModel = await this.getUserByCpf(cpf);
 
     if(!userBanco) return false;
 

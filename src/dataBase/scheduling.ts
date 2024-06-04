@@ -1,32 +1,35 @@
 import { UserModel, SchedulingModel, Cras, HTTP_ERRORS, Status } from './../models/model';
 import { knex } from "../connectDB";
 import { Usuario } from "./usuario";
-import createError from "http-errors";
 
 export class Scheduling {
 
     public static async getSchedules(): Promise<SchedulingModel[]> {
-        let agendamentos = await knex("scheduling").select("*").orderBy("id");
+        let agendamentos: SchedulingModel[] = await knex("scheduling").select("*").orderBy("id");
+        if(!agendamentos || agendamentos.length <= 0) throw new Error("Náo há nenhum agendamento disponível!");
 
         return agendamentos;
     }
 
-    public static async getSchedulesByCras(cras: number): Promise<SchedulingModel[] | null> {
-        let agendamentos = await knex("scheduling").select("*").where("cras", cras).orderBy("id");
-        console.log(agendamentos);
+    public static async getSchedulesByCras(cras: number): Promise<SchedulingModel[]> {
+        let agendamentos: SchedulingModel[] = await knex("scheduling").select("*").where("cras", cras).orderBy("id");
+        if(!agendamentos || agendamentos.length <= 0) throw new Error(`Náo há nenhum agendamento para o Cras de ${Cras[cras]}!`);
+
         return agendamentos;
     }
 
     public static async getScheduleById(id: string): Promise<SchedulingModel> {
-        let agendamento = await knex("scheduling").select("*").where("id", id).first();
+        let agendamento: SchedulingModel = await knex("scheduling").select("*").where("id", id).first();
+        if(!agendamento) throw new Error("Náo há nenhum agendamento disponível!");
 
         return agendamento;
     }
 
-    public static async getScheduleByUserId(usuario_id: string): Promise<SchedulingModel> {
-        let agendamento = await knex("scheduling").select("*").where("usuario_id", usuario_id).first();
+    public static async getScheduleByUserId(usuario_id: string): Promise<SchedulingModel[]> {
+        let agendamentos: SchedulingModel[] = await knex("scheduling").select("*").where("usuario_id", usuario_id).orderBy("id");
+        if(!agendamentos || agendamentos.length <= 0) throw new Error("Náo há nenhum agendamento para este usuário!");
 
-        return agendamento;
+        return agendamentos;
     }
 
     private static async isSchedulingUserConflict(usuario_id: string, data_hora: Date): Promise<boolean> {
@@ -66,8 +69,8 @@ export class Scheduling {
             }
     
             const numAgendamentosCount = parseInt(String(numAgendamentos.count));
-            const funcionarios: UserModel[] | null = await Usuario.getFuncionariosByCras(cras);
-            if (funcionarios == null) throw new Error('O cras informado é inválido ou não possuí funcionários cadastrados!');
+            const funcionarios: UserModel[] = await Usuario.getFuncionariosByCras(cras);
+            if (!funcionarios || funcionarios.length <= 0) throw new Error('O cras informado é inválido ou não possuí funcionários cadastrados!');
 
 
             return numAgendamentosCount >= funcionarios.length;

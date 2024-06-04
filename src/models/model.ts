@@ -74,21 +74,6 @@ export enum Cras {
   MORRO_DO_COCO,
   TAPERA
 }
-
-// export enum Cras {
-//   "CODIN" = 1,
-//   "CUSTODÓPOLIS" = 2,
-//   "JARDIM_CARIOCA" = 3,
-//   "PARQUE_ESPLANADA" = 4,
-//   "CHATUBA" = 5,
-//   "MATADOURO" = 6,
-//   "PENHA" = 7,
-//   "GOITACAZES" = 8,
-//   "PARQUE_GUARU" = 9,
-//   "TRAVESSAO" = 10,
-//   "MORRO_DO_COCO" = 11,
-//   "TAPERA" = 12
-// }
     
 export enum ErrosBDModel {
   UNIQUE_VIOLATION = 23505,
