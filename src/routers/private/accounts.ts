@@ -44,7 +44,7 @@ export = (app: Application) => {
       "/private/updateAccount/:id",
       async (req: Request, res: Response, next: NextFunction) => {
 
-        let usuario: UserModel | null = await Usuario.getUserById(req.params.id);
+        let usuario: UserModel = await Usuario.getUserById(req.params.id);
         
         if(!usuario) return next(createError(HTTP_ERRORS.BAD_REQUEST, "Id Invalido!"));
         
@@ -81,18 +81,20 @@ export = (app: Application) => {
       }
     );
 
-    //A ROTA DE DELETE ESTÁ IMPLEMENTADA PORÉM, A EXCLUSÃO ATUAL É SOMENTE LÓGICA: TROCANDO O STATUS PARA 0 'CANCELADO'.
     app.delete(
-      "/private/deleteAccount/:id",
+      "/private/deleteAccount/",
       async (req: Request, res: Response, next: NextFunction) => {
-
-        let usuarioDelete: UserModel| null = await Usuario.getUserById(req.params.id);
-        let usuarioAdmin: UserModel | null= await Usuario.getUserById(req.params.adminId);
         
-        if(!usuarioDelete) return next(createError(HTTP_ERRORS.BAD_REQUEST, "Id para exclusão Invalido!"));
+        let usuarioId = req.query.id?.toString() ?? "";
+        let adminId = req.query.funcionarioId?.toString() ?? "";
 
-        if(!usuarioAdmin || usuarioAdmin.tipoUsuario == TipoUsuario.comum) 
-          return next(createError(HTTP_ERRORS.BAD_REQUEST, "Você não tem permissão para remover usuarios!"));
+        let usuarioDelete: UserModel = await Usuario.getUserById(usuarioId);
+        let usuarioAdmin: UserModel = await Usuario.getUserById(adminId);
+        
+        if(!usuarioDelete || !usuarioAdmin) return next(createError(HTTP_ERRORS.BAD_REQUEST, "Id para exclusão Invalido!"));
+
+        if(usuarioAdmin.tipoUsuario != TipoUsuario.superAmin) 
+          return next(createError(HTTP_ERRORS.BAD_REQUEST, "Você não tem permissão para excluir usuarios!"));
 
         await Usuario.deleteUser(usuarioDelete.cpf)
           .then((result) => {

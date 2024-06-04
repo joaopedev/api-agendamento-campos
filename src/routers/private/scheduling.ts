@@ -1,11 +1,10 @@
 import { Application, NextFunction, Request, Response } from "express";
-import {  Cras, HTTP_ERRORS, SchedulingModel, TipoUsuario, UserModel } from "../../models/model";
+import {  HTTP_ERRORS, SchedulingModel, TipoUsuario, UserModel } from "../../models/model";
 import { Usuario } from "../../dataBase/usuario";
 import { body, validationResult } from "express-validator";
 import createError from "http-errors";
 import { Scheduling } from "../../dataBase/scheduling";
 import { tratarErro } from "../../utils/errors";
-import knex from "knex";
 
 export = (app: Application) => {
 
@@ -18,6 +17,23 @@ export = (app: Application) => {
           res.json({
             message: "agendamentos recuperados com sucesso",
             agendamentos: agendamentos,
+          });
+        })
+        .catch((erro) => {
+          next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS, erro));
+        });
+    }
+  );
+
+  app.get(
+    "/private/scheduling/:id",
+    async (req: Request, res: Response, next: NextFunction) => {
+
+      await Scheduling.getScheduleById(req.params.id)
+        .then((agendamento) => {
+          res.json({
+            message: "agendamento recuperado com sucesso",
+            agendamentos: agendamento,
           });
         })
         .catch((erro) => {
@@ -106,10 +122,9 @@ export = (app: Application) => {
     async (req: Request, res: Response, next: NextFunction) => {
 
       let agendamento: SchedulingModel = await Scheduling.getScheduleById(req.params.id);
-      let usuario: UserModel | null = await Usuario.getUserById(req.body.usuario_id);
-      console.log(usuario)
+      let usuario: UserModel = await Usuario.getUserById(req.body.usuario_id);
+
       if(!usuario || !agendamento.id){
-        console.log("entrou aqui")
         const erro = usuario ? "o agendamentoId é" : "o usuario_id é"; 
         return next(
           createError(HTTP_ERRORS.BAD_REQUEST, `${erro} inválido`)
@@ -137,23 +152,22 @@ export = (app: Application) => {
   );
 
   app.delete(
-    "/private/deleteScheduling/:id",
+    "/private/deleteScheduling/",
     async (req: Request, res: Response, next: NextFunction) => {
+      let agendamentoId = req.query.id?.toString() ?? "";
+      let adminId = req.query.funcionarioId?.toString() ?? "";
 
-      let agendamentoDelete: SchedulingModel = await Scheduling.getScheduleById(req.params.id);
-      let usuario: UserModel | null = await Usuario.getUserById(req.body.usuario_id);
+      let agendamentoDelete: SchedulingModel = await Scheduling.getScheduleById(agendamentoId);
+      let superAdmin: UserModel = await Usuario.getUserById(adminId);
       
-      if(!usuario || !agendamentoDelete.id){
-        const erro = usuario ? "o agendamentoId é" : "o usuario_id é"; 
+      if(!superAdmin || !agendamentoDelete.id){
+        const erro = superAdmin ? "o agendamentoId é" : "o usuario_id é"; 
         return next(
           createError(HTTP_ERRORS.BAD_REQUEST, `${erro} inválido`)
         );
       }
-      
-      const usuarioProprietario = usuario.id == agendamentoDelete.usuario_id;
 
-      //Validação de usuário para exclusão do agendamento.
-      if(usuario.tipoUsuario == TipoUsuario.comum && !usuarioProprietario) 
+      if(superAdmin.tipoUsuario != TipoUsuario.superAmin) 
         return next(createError(HTTP_ERRORS.BAD_REQUEST, "Você não tem permissão para excluir esse agendamento!"));
 
       await Scheduling.deleteSchedule(agendamentoDelete.id)
