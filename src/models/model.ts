@@ -24,6 +24,7 @@ export interface UserModel {
   endereco: Endereco
   tipoUsuario: TipoUsuario,
   cras: Cras,
+  ativo: boolean,
   passwordResetToken?: string,
   passwordResetExpires?: Date,
   [key: string]: any; 
