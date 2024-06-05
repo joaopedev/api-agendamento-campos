@@ -20,8 +20,6 @@ export class Scheduling {
     }
 
     public static async getScheduleById(id: string): Promise<SchedulingModel> {
-        if(!isUUID(id)) throw new Error('ID de agendamento inválido!');
-
         let agendamento: SchedulingModel = await knex("scheduling").select("*").where("id", id).first();
         if(!agendamento) throw new Error("Náo há nenhum agendamento disponível!");
 
@@ -29,6 +27,8 @@ export class Scheduling {
     }
 
     public static async getScheduleByUserId(usuario_id: string): Promise<SchedulingModel[]> {
+        if(!isUUID(usuario_id)) throw new Error('ID de usuário inválido!');
+
         let agendamentos: SchedulingModel[] = await knex("scheduling").select("*").where("usuario_id", usuario_id).orderBy("id");
         if(!agendamentos || agendamentos.length <= 0) throw new Error("Náo há nenhum agendamento para este usuário!");
 
@@ -138,10 +138,8 @@ export class Scheduling {
         }
     }
 
-    //ESTÁ IMPLEMENTADO PORÉM NÃO DEVE SER USADO POR ENQUANTO, SOMENTE EXCLUSÃO LÓGICA NO BANCO COM STATUS 0 'CANCELADO'
+    //ESTÁ IMPLEMENTADO APENAS PARA SUPERADMIN, ADMINS DEVEM FAZER SOMENTE EXCLUSÃO LÓGICA COM STATUS 0 'CANCELADO'
     public static async deleteSchedule(id: string): Promise<boolean> {
-
-        if(!isUUID(id)) throw new Error('ID de agendamento inválido!');
 
         const agendamento = await this.getScheduleById(id);
         
