@@ -11,7 +11,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "npm run build && npm run migrate",
+    "postinstall": "npm run build && npm install -g npm@10.8.1 && npm run migrate ",
     "migrate": "knex migrate:latest"
   },
   "author": "Joao Pedro Sousa e Silva & Rafael Sibien Pereira.",
