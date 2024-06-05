@@ -4,7 +4,8 @@
   "description": "Esta é a API de controle backend do sistema de agendamento dos CRAS da prefeitura de Campos - RJ.",
   "main": "server.js",
   "engines": {
-    "node": "18.18.1"
+    "node": "18.18.1",
+    "npm":"10.8.1"
   },
   "scripts": {
     "dev": "ts-node-dev --inspect --transpile-only --ignore-watch node_modules src/server.ts",
