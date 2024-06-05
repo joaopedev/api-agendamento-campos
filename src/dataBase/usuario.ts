@@ -1,5 +1,6 @@
 import { Cras, TipoUsuario, UserModel } from './../models/model';
 import { knex } from "../connectDB";
+import { validate as isUUID } from 'uuid';
 
 export class Usuario {
 
@@ -20,6 +21,8 @@ export class Usuario {
   }
 
   public static async getUserById(id: string): Promise<UserModel> {
+
+    if(!isUUID(id)) throw new Error('ID de usuário inválido!');
 
     const user:UserModel  = await knex("usuarios").select("*").where("id", id).first();  
     if(!user) throw new Error("Náo há nenhum usuário com este Id!");
@@ -91,8 +94,11 @@ export class Usuario {
     }
   }
 
-  public static async deleteUser(cpf: string): Promise<boolean> {
-    const userBanco: UserModel = await this.getUserByCpf(cpf);
+  public static async deleteUser(id: string): Promise<boolean> {
+
+    if(!isUUID(id)) throw new Error('ID de agendamento inválido!');
+    
+    const userBanco: UserModel = await this.getUserById(id);
 
     if(!userBanco) return false;
 

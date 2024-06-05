@@ -1,6 +1,7 @@
 import { UserModel, SchedulingModel, Cras, HTTP_ERRORS, Status } from './../models/model';
 import { knex } from "../connectDB";
 import { Usuario } from "./usuario";
+import { validate as isUUID } from 'uuid';
 
 export class Scheduling {
 
@@ -19,6 +20,8 @@ export class Scheduling {
     }
 
     public static async getScheduleById(id: string): Promise<SchedulingModel> {
+        if(!isUUID(id)) throw new Error('ID de agendamento inválido!');
+
         let agendamento: SchedulingModel = await knex("scheduling").select("*").where("id", id).first();
         if(!agendamento) throw new Error("Náo há nenhum agendamento disponível!");
 
@@ -137,7 +140,11 @@ export class Scheduling {
 
     //ESTÁ IMPLEMENTADO PORÉM NÃO DEVE SER USADO POR ENQUANTO, SOMENTE EXCLUSÃO LÓGICA NO BANCO COM STATUS 0 'CANCELADO'
     public static async deleteSchedule(id: string): Promise<boolean> {
+
+        if(!isUUID(id)) throw new Error('ID de agendamento inválido!');
+
         const agendamento = await this.getScheduleById(id);
+        
         if(!agendamento) return false;
 
         try {
@@ -153,7 +160,23 @@ export class Scheduling {
             throw error;
         }
     
-      }
+    }
+
+    public static async deleteUserSchedules(agendamentos: SchedulingModel[]): Promise<boolean> {
+
+        try {
+            
+            const retorno = await knex("scheduling")
+              .select("scheduling")
+              .where("usuario_id", agendamentos[0].usuario_id)
+              .delete();
+        
+            return !!retorno;
+        } catch (error) {
+            throw error;
+        }
+    
+    }
 
 
 }
