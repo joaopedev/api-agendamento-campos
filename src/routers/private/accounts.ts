@@ -3,6 +3,7 @@ import createError from "http-errors";
 import { Usuario } from "../../dataBase/usuario";
 import { Application, NextFunction, Request, Response } from "express";
 import { encodePassword, comparePasswords } from "../../utils/bcrypFunctions";
+import { Scheduling } from "../../dataBase/scheduling";
 
 export = (app: Application) => {
     app.get(
@@ -91,15 +92,22 @@ export = (app: Application) => {
         let usuarioDelete: UserModel = await Usuario.getUserById(usuarioId);
         let usuarioAdmin: UserModel = await Usuario.getUserById(adminId);
         
-        if(!usuarioDelete || !usuarioAdmin) return next(createError(HTTP_ERRORS.BAD_REQUEST, "Id para exclusão Invalido!"));
+        if(!usuarioDelete.id || !usuarioAdmin) return next(createError(HTTP_ERRORS.BAD_REQUEST, "Id para exclusão Invalido!"));
 
         if(usuarioAdmin.tipoUsuario != TipoUsuario.superAmin) 
           return next(createError(HTTP_ERRORS.BAD_REQUEST, "Você não tem permissão para excluir usuarios!"));
 
-        await Usuario.deleteUser(usuarioDelete.cpf)
+        const agendamentosDoUsuario = await Scheduling.getScheduleByUserId(usuarioDelete.id);
+
+        if(agendamentosDoUsuario.length > 0) {
+          const deletou = await Scheduling.deleteUserSchedules(agendamentosDoUsuario);
+          if(!deletou) return next(createError(HTTP_ERRORS.ERRO_INTERNO, "Ocorreu um erro ao tentar excluir os agendamentos deste usuário!"));
+        }
+
+        await Usuario.deleteUser(usuarioDelete.id)
           .then((result) => {
             if (result) {
-              res.json({ message: "Dados atualizados com sucesso" });
+              res.json({ message: "Usuário e agendamentos deletados com sucesso" });
             } else {
               res.status(404).json(result);
             }
