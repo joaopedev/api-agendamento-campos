@@ -5,16 +5,18 @@ import { Application, NextFunction, Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import jwt from "jsonwebtoken";
 import { comparePasswords } from "../../utils/bcrypFunctions";
+
 require("dotenv").config();
 
 export = (app: Application) => {
-  app.post(
+
+    app.post(
     "/login",
-    body("cpf").notEmpty(),
-    body("password").exists(),
+    body("cpf").notEmpty().isString().trim().escape(),
+    body("password").notEmpty().isString().trim().escape(),
     async (req: Request, res: Response, next: NextFunction) => {
         const errors = validationResult(req);
-      
+        
         if (!errors.isEmpty()) {
             const message = errors.array().map( erro => erro.msg);
             next(createError(HTTP_ERRORS.BAD_REQUEST, message[0]));
