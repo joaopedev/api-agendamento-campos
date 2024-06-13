@@ -29,8 +29,6 @@ export class UserLogin{
         })
         .catch((erro: any) => {
           reject(erro);
-        }).finally(() => {
-          knex.destroy();
         });
     });
   }
