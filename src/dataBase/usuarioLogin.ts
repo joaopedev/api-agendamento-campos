@@ -17,7 +17,7 @@ export class UserLogin{
         .where("cpf", cpf)
         .first()
         .then((usuarioBanco: UserModel | any) => {
-          console.log("chega aqui")
+          
           if (!usuarioBanco) return reject(new Error("Nenhum usuário encontrado com este cpf!"));
 
           const user: UserModel = usuarioBanco;
