@@ -1,10 +1,12 @@
 import { Cras, TipoUsuario, UserModel } from './../models/model';
-import { knex } from "../connectDB";
 import { validate as isUUID } from 'uuid';
+import DbInstance from '../connectionManager';
+import { Scheduling } from './scheduling';
 
 export class Usuario {
 
   public static async getUsers(): Promise<UserModel[]> {
+    const knex = DbInstance.getInstance();
 
     let users = await knex("usuarios").select("*").orderBy("id");
     if(!users || users.length <= 0) throw new Error("Náo há nenhum usuário cadastrado!");
@@ -13,6 +15,7 @@ export class Usuario {
   }
 
   public static async getFuncionariosByCras(cras: number): Promise<UserModel[]> {
+    const knex = DbInstance.getInstance();
 
     const funcionarios: UserModel[]  = await knex("usuarios").select("*").where("cras", cras).andWhere("tipoUsuario", TipoUsuario.admin).orderBy("id");
     if(!funcionarios || funcionarios.length <= 0) throw new Error(`Náo há nenhum funcionário cadastrado no Cras ${Cras[cras]}!`);
@@ -24,6 +27,8 @@ export class Usuario {
 
     if(!isUUID(id)) throw new Error('ID de usuário inválido!');
 
+    const knex = DbInstance.getInstance();
+
     const user:UserModel  = await knex("usuarios").select("*").where("id", id).first();  
     if(!user) throw new Error("Náo há nenhum usuário com este Id!");
 
@@ -31,6 +36,7 @@ export class Usuario {
   }
 
   public static async getUserByEmail(email: string): Promise<UserModel> {
+    const knex = DbInstance.getInstance();
 
     const user = await knex("usuarios").select("*").where("email", email).first();
     if(!user) throw new Error("Náo há nenhum usuário com este email!");
@@ -39,6 +45,7 @@ export class Usuario {
   }
 
   public static async getUserByCpf(cpf: string): Promise<UserModel> {
+    const knex = DbInstance.getInstance();
 
     const user = await knex("usuarios").select("*").where("cpf", cpf).first();
     if(!user) throw new Error("Náo há nenhum usuário com este CPF!");
@@ -51,9 +58,12 @@ export class Usuario {
       throw new Error("A senha deve ter pelo menos 8 caracteres");
     }
 
+    const knex = DbInstance.getInstance();
+    const trx = await knex.transaction();
+
     try {
 
-      const existingUser = await knex("usuarios")
+      const existingUser = await trx("usuarios")
         .where({ cpf: usuario.cpf })
         .first();
 
@@ -61,10 +71,13 @@ export class Usuario {
         throw new Error("Este cpf já possui cadastro!");
       }
 
-      await knex("usuarios").insert(usuario);
-      return usuario;
+      await trx("usuarios").insert(usuario);
+      await trx.commit();
       
+      return usuario;
+        
     } catch (error) {
+      await trx.rollback();
       throw error;
     }
   }
@@ -78,41 +91,60 @@ export class Usuario {
 
     if(!userBanco) throw new Error("O usuário informado não existe!");;
 
-    userBanco = { ...userBanco, ...usuario };
-
+    
+    const knex = DbInstance.getInstance();
+    const trx = await knex.transaction();
+    
     try {
       
-      await knex("usuarios")
+      if(userBanco.ativo != usuario.ativo) {
+        if(!usuario.ativo) {
+          const usuarioId = usuario.id ?? "";
+          Scheduling.cancelaUserSchedules(usuarioId);
+        }
+      }
+
+      userBanco = { ...userBanco, ...usuario };
+
+      await trx("usuarios")
         .where("id", userBanco.id)
         .first()
         .update(userBanco);
-     
+      
+      trx.commit();
+
       return userBanco;
 
     } catch (error) {
+      trx.rollback();
       throw error
     }
   }
 
   public static async deleteUser(id: string): Promise<boolean> {
 
-    if(!isUUID(id)) throw new Error('ID de agendamento inválido!');
+    if(!isUUID(id)) throw new Error('ID de usuário inválido!');
     
     const userBanco: UserModel = await this.getUserById(id);
 
     if(!userBanco) return false;
 
+    const knex = DbInstance.getInstance();
+    const trx = await knex.transaction();
+
     try {
       
-      const user = await knex("usuarios")
+      const user = await trx("usuarios")
         .select("usuarios")
         .where("cpf", userBanco.cpf)
         .first()
         .delete();
   
+      trx.commit();
       return !!user;
 
     } catch (error) {
+      trx.rollback();
       throw error;
     }
   }

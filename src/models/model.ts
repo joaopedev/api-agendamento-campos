@@ -39,7 +39,7 @@ interface Endereco {
 export enum TipoUsuario {
   comum = 1,
   admin,
-  superAmin,
+  superAdmin,
 }
 
 export interface SchedulingModel {

@@ -94,13 +94,13 @@ export = (app: Application) => {
         
         if(!usuarioDelete.id || !usuarioAdmin) return next(createError(HTTP_ERRORS.BAD_REQUEST, "Id para exclusão Invalido!"));
 
-        if(usuarioAdmin.tipoUsuario != TipoUsuario.superAmin) 
+        if(usuarioAdmin.tipoUsuario != TipoUsuario.superAdmin) 
           return next(createError(HTTP_ERRORS.BAD_REQUEST, "Você não tem permissão para excluir usuarios!"));
 
         const agendamentosDoUsuario = await Scheduling.getScheduleByUserId(usuarioDelete.id);
 
         if(agendamentosDoUsuario.length > 0) {
-          const deletou = await Scheduling.deleteUserSchedules(agendamentosDoUsuario);
+          const deletou = await Scheduling.deleteUserSchedules(usuarioDelete.id);
           if(!deletou) return next(createError(HTTP_ERRORS.ERRO_INTERNO, "Ocorreu um erro ao tentar excluir os agendamentos deste usuário!"));
         }
 

@@ -1,11 +1,13 @@
 import { UserModel, SchedulingModel, Cras, HTTP_ERRORS, Status } from './../models/model';
-import { knex } from "../connectDB";
 import { Usuario } from "./usuario";
 import { validate as isUUID } from 'uuid';
+import DbInstance from '../connectionManager';
 
 export class Scheduling {
 
     public static async getSchedules(): Promise<SchedulingModel[]> {
+        const knex = DbInstance.getInstance();
+
         let agendamentos: SchedulingModel[] = await knex("scheduling").select("*").orderBy("id");
         if(!agendamentos || agendamentos.length <= 0) throw new Error("Náo há nenhum agendamento disponível!");
 
@@ -13,6 +15,8 @@ export class Scheduling {
     }
 
     public static async getSchedulesByCras(cras: number): Promise<SchedulingModel[]> {
+        const knex = DbInstance.getInstance();
+
         let agendamentos: SchedulingModel[] = await knex("scheduling").select("*").where("cras", cras).orderBy("id");
         if(!agendamentos || agendamentos.length <= 0) throw new Error(`Náo há nenhum agendamento para o Cras de ${Cras[cras]}!`);
 
@@ -20,6 +24,8 @@ export class Scheduling {
     }
 
     public static async getScheduleById(id: string): Promise<SchedulingModel> {
+        const knex = DbInstance.getInstance();
+
         let agendamento: SchedulingModel = await knex("scheduling").select("*").where("id", id).first();
         if(!agendamento) throw new Error("Náo há nenhum agendamento disponível!");
 
@@ -28,6 +34,7 @@ export class Scheduling {
 
     public static async getScheduleByUserId(usuario_id: string): Promise<SchedulingModel[]> {
         if(!isUUID(usuario_id)) throw new Error('ID de usuário inválido!');
+        const knex = DbInstance.getInstance();
 
         let agendamentos: SchedulingModel[] = await knex("scheduling").select("*").where("usuario_id", usuario_id).orderBy("id");
         if(!agendamentos || agendamentos.length <= 0) throw new Error("Náo há nenhum agendamento para este usuário!");
@@ -38,6 +45,9 @@ export class Scheduling {
     private static async isSchedulingUserConflict(usuario_id: string, data_hora: Date): Promise<boolean> {
         // Converter a data para o formato YYYY-MM-DD
         const data_hora_iso = data_hora.toISOString().substring(0, 10);
+        
+        const knex = DbInstance.getInstance();
+
         try {
             
             const existingScheduling = await knex('scheduling')
@@ -57,6 +67,8 @@ export class Scheduling {
         const data_hora_iso = data_hora.toISOString().substring(0, 10);
          // Obtendo a hora da data
         const hora = data_hora.getHours();
+
+        const knex = DbInstance.getInstance();
 
         try {
             
@@ -86,7 +98,10 @@ export class Scheduling {
 
     public static async createSchedule(agendamento: SchedulingModel): Promise<SchedulingModel> {
         if (!agendamento) throw new Error("Agendamento inválido!");
-   
+        
+        const knex = DbInstance.getInstance();
+        const trx = await knex.transaction();
+
         try {
 
             let existeAgendamento = await this.isSchedulingUserConflict(agendamento.usuario_id, agendamento.data_hora)
@@ -101,10 +116,13 @@ export class Scheduling {
                 throw new Error("Este horário escolhido não está disponível, por favor escolha outro horário!");
             }
 
-            await knex("scheduling").insert(agendamento);
+            await trx("scheduling").insert(agendamento);
+            trx.commit();
+
             return agendamento;
           
         } catch (error) {
+            trx.rollback();
             throw error;
         }
     }
@@ -117,6 +135,9 @@ export class Scheduling {
             throw new Error(`O serviço para esse agendamento já foi concluído devido ao seu status ${erro}!`);
         } 
 
+        const knex = DbInstance.getInstance();
+        const trx = await knex.transaction();
+
         try {
 
             let agendamentoBanco = await this.getScheduleById(agendamento.id);
@@ -126,15 +147,40 @@ export class Scheduling {
             
             if (!agendamentoBanco.cras) throw new Error("É obrigatório escolher o cras do agendamento!");
 
-            await knex("scheduling")
+            await trx("scheduling")
                 .where("id", agendamentoBanco.id)
                 .first()
                 .update(agendamentoBanco);
 
+            trx.commit();
+            
             return agendamentoBanco;
 
         } catch (error) {
+            trx.rollback();
             throw error
+        }
+    }
+
+    public static async cancelaUserSchedules(usuario_id: string): Promise<boolean> {
+        
+        const knex = DbInstance.getInstance();
+        const trx = await knex.transaction();
+
+        try {
+
+            const retorno = await trx("scheduling")
+              .select("*")
+              .where("usuario_id", usuario_id)
+              .update({ status: Status.cancelado });
+        
+            trx.commit();
+
+            return !!retorno;
+            
+        } catch (error) {
+            trx.rollback();
+            throw error;
         }
     }
 
@@ -145,32 +191,44 @@ export class Scheduling {
         
         if(!agendamento) return false;
 
+        const knex = DbInstance.getInstance();
+        const trx = await knex.transaction();
+
         try {
             
-            const retorno = await knex("scheduling")
+            const retorno = await trx("scheduling")
               .select("scheduling")
               .where("id", id)
               .first()
               .delete();
-        
+            
+            trx.commit();
+
             return !!retorno;
         } catch (error) {
+            trx.rollback();
             throw error;
         }
     
     }
 
-    public static async deleteUserSchedules(agendamentos: SchedulingModel[]): Promise<boolean> {
+    public static async deleteUserSchedules(usuario_id: string): Promise<boolean> {
+
+        const knex = DbInstance.getInstance();
+        const trx = await knex.transaction();
 
         try {
             
-            const retorno = await knex("scheduling")
+            const retorno = await trx("scheduling")
               .select("scheduling")
-              .where("usuario_id", agendamentos[0].usuario_id)
+              .where("usuario_id", usuario_id)
               .delete();
         
+            trx.commit();
+
             return !!retorno;
         } catch (error) {
+            trx.rollback();
             throw error;
         }
     

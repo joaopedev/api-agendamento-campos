@@ -1,4 +1,4 @@
-import { knex } from "../connectDB";
+import DbInstance from "../connectionManager";
 import { UserModel } from "../models/model";
 import { comparePasswords, generateToken } from "../utils/bcrypFunctions"
 import * as nodemailer from 'nodemailer';
@@ -9,12 +9,15 @@ export class UserLogin{
 
   public static async loginUser(cpf: string, senha: string): Promise<UserModel> {
     return new Promise((resolve, reject) => {
+
+      const knex = DbInstance.getInstance();
+
       knex("usuarios")
         .select("*")
         .where("cpf", cpf)
         .first()
         .then((usuarioBanco: UserModel | any) => {
-
+          
           if (!usuarioBanco) return reject(new Error("Nenhum usuário encontrado com este cpf!"));
 
           const user: UserModel = usuarioBanco;
@@ -26,14 +29,14 @@ export class UserLogin{
         })
         .catch((erro: any) => {
           reject(erro);
-        }).finally(() => {
-          knex.destroy();
         });
     });
   }
 
   public static async forgotPassword(email: string): Promise<boolean> {
     try {
+      const knex = DbInstance.getInstance();
+
       const user: UserModel | undefined = await knex("usuarios")
         .where("email", email)
         .first();
@@ -85,6 +88,7 @@ export class UserLogin{
   public static async updateForgotPassword(
     token: number
   ): Promise<UserModel | null> {
+    const knex = DbInstance.getInstance();
     const user: UserModel = await knex("usuarios")
       .select("*")
       .where("passwordResetToken", token)
