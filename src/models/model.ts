@@ -11,76 +11,78 @@ export enum HTTP_ERRORS {
   VALIDACAO_DE_DADOS = 422, // Falha na validação de dados
   REGISTRO_NAO_ENCONTRADO = 404, // Registro não encontrado (caso específico)
   OUTRO_ERRO = 550, // Outro erro não mapeado
-  }
-    
+}
+
 export interface UserModel {
-  id?: string,
-  name: string,
-  email?: string,
-  cpf: string,
-  dataNascimento: string,
-  password: string,
-  telefone: string,
-  endereco: Endereco
-  tipoUsuario: TipoUsuario,
-  cras: Cras,
-  ativo: boolean,
-  passwordResetToken?: string,
-  passwordResetExpires?: Date,
-  [key: string]: any; 
+  id?: string;
+  name: string;
+  email?: string;
+  cpf: string;
+  dataNascimento: string;
+  password: string;
+  telefone: string;
+  endereco: Endereco;
+  tipoUsuario: TipoUsuario;
+  cras: Cras;
+  ativo: boolean;
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
+  [key: string]: any;
 }
 
 interface Endereco {
-  rua: string,
-  numero: number,
-  bairro: string
+  rua: string;
+  numero: number;
+  bairro: string;
 }
 
 export enum TipoUsuario {
   comum = 1,
   admin,
-  superAdmin
+  superAdmin,
 }
 
 export interface SchedulingModel {
-  id?: string,
-  name: string,
-  usuario_id: string,
-  servico: TipoServico,
-  description: string,
-  duracao_estimada: Date,
-  data_hora: Date,
-  cras: Cras,
-  status: Status
+  id?: string;
+  name: string;
+  usuario_id: string;
+  servico: TipoServico;
+  description: string;
+  duracao_estimada: Date;
+  data_hora: Date;
+  cras: Cras;
+  status: Status;
 }
 
 export enum Status {
   cancelado = 0,
   realizado,
   pendente,
-  ausente
+  ausente,
 }
 
 export enum Cras {
   CODIN = 1,
   CUSTODÓPOLIS,
   JARDIM_CARIOCA,
-  PARQUE_ESPLANADA,
+  ESPLANADA,
   CHATUBA,
   MATADOURO,
   PENHA,
-  GOITACAZES,
-  PARQUE_GUARU,
+  GOYTACAZES,
+  PARQUE_GUARUS,
   TRAVESSAO,
   MORRO_DO_COCO,
-  TAPERA
+  FAROL,
+  JOCKEY,
+  URURAÍ,
 }
-    
+
 export enum ErrosBDModel {
   UNIQUE_VIOLATION = 23505,
 }
 
 export enum TipoServico {
   cadastramento = 1,
-  outros
+  outros,
 }
