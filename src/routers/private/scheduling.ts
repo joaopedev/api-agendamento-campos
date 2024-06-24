@@ -97,7 +97,6 @@ export = (app: Application) => {
       const agendamento: SchedulingModel = { ...req.body };
       
       agendamento.data_hora = new Date(req.body.data_hora);
-      agendamento.duracao_estimada = new Date(req.body.duracao_estimada);
 
       if (!agendamento.usuario_id || !agendamento.data_hora) {
         const erro = agendamento.usuario_id ? "data_hora" : "usuario_id"; 
@@ -118,11 +117,14 @@ export = (app: Application) => {
   );
 
   app.put(
-    "/private/updateScheduling/:id",
+    "/private/updateScheduling/",
     async (req: Request, res: Response, next: NextFunction) => {
 
-      let agendamento: SchedulingModel = await Scheduling.getScheduleById(req.params.id);
-      let usuario: UserModel = await Usuario.getUserById(req.body.usuario_id);
+      let agendamentoId = req.query.id?.toString() ?? "";
+      let usuarioParaAlteracao = req.query.usuario_id?.toString() ?? "";
+
+      let agendamento: SchedulingModel = await Scheduling.getScheduleById(agendamentoId);
+      let usuario: UserModel = await Usuario.getUserById(usuarioParaAlteracao);
 
       if(!usuario || !agendamento.id){
         const erro = usuario ? "o agendamentoId é" : "o usuario_id é"; 
@@ -166,7 +168,7 @@ export = (app: Application) => {
         );
       }
 
-      if(superAdmin.tipoUsuario != TipoUsuario.superAmin) 
+      if(superAdmin.tipoUsuario != TipoUsuario.superAdmin) 
         return next(createError(HTTP_ERRORS.BAD_REQUEST, "Você não tem permissão para excluir esse agendamento!"));
 
       await Scheduling.deleteSchedule(agendamentoDelete.id)

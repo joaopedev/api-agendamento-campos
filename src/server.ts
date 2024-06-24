@@ -18,16 +18,16 @@ app.use(cors());
 app.use(json());
 
 
-// Limite de taxa para prevenir ataques DDOS
-// const limiter = rateLimit({
-//   windowMs: 5 * 60 * 1000, // 5 minutos
-//   max: 5, // Limita cada IP a 30 requisições por janela
-//   message: 'Muitas requisições vindas deste IP, por favor, tente novamente mais tarde.',
-//   standardHeaders: true, // Retorna informações de limite nos headers `RateLimit-*`
-//   legacyHeaders: false, // Desabilita os headers `X-RateLimit-*`
-// });
+//Limite de taxa para prevenir ataques DDOS
+const limiter = rateLimit({
+  windowMs:  60 * 1000, // 1 minutos
+  max: 60, // Limita cada IP a 60 requisições por minuto
+  message: 'Muitas requisições vindas deste IP, por favor, tente novamente mais tarde.',
+  standardHeaders: true, // Retorna informações de limite nos headers `RateLimit-*`
+  legacyHeaders: false, // Desabilita os headers `X-RateLimit-*`
+});
 
-// app.use(limiter);
+app.use(limiter);
 
 app.use("/private/*", (req: Request, res: Response, next: NextFunction) => {
   let authorization = req.header("authorization");

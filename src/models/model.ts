@@ -43,15 +43,15 @@ export enum TipoUsuario {
 }
 
 export interface SchedulingModel {
-  id?: string;
-  name: string;
-  usuario_id: string;
-  servico: TipoServico;
-  description: string;
-  duracao_estimada: Date;
-  data_hora: Date;
-  cras: Cras;
-  status: Status;
+  id?: string,
+  name: string,
+  usuario_id: string,
+  servico: TipoServico,
+  description: string,
+  duracao_atendimento: number,
+  data_hora: Date,
+  cras: Cras,
+  status: Status
 }
 
 export enum Status {
@@ -78,11 +78,12 @@ export enum Cras {
   URURAÍ,
 }
 
-export enum ErrosBDModel {
-  UNIQUE_VIOLATION = 23505,
-}
-
 export enum TipoServico {
   cadastramento = 1,
-  outros,
+  outros
+}
+
+export enum ErrosBDModel {
+  UNIQUE_VIOLATION = 23505,
+
 }

@@ -7,7 +7,7 @@ import { tratarErro } from "../../utils/errors"
 import { encodePassword } from "../../utils/bcrypFunctions";
 import { Usuario } from "../../dataBase/usuario";
 
-export = (app: Application) => {
+export = (app: Application) => {  
   app.post(
     "/registerUsers",
     body("cpf").notEmpty(),
