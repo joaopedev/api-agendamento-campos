@@ -129,11 +129,6 @@ export class Scheduling {
 
     public static async updateSchedule(agendamento: SchedulingModel): Promise<SchedulingModel> {
         if (!agendamento.id) throw new Error("Id de agendamento inválido!");
-        
-        if (agendamento.status == Status.realizado || agendamento.status == Status.ausente) {
-            const erro = agendamento.status == Status.realizado ? "Ausente" : "Realizado";             
-            throw new Error(`O serviço para esse agendamento já foi concluído devido ao seu status ${erro}!`);
-        } 
 
         const knex = DbInstance.getInstance();
         const trx = await knex.transaction();
@@ -142,6 +137,10 @@ export class Scheduling {
 
             let agendamentoBanco = await this.getScheduleById(agendamento.id);
             if (!agendamentoBanco) throw new Error("Esse agendamento não existe!");
+            if (agendamentoBanco.status == Status.realizado || agendamentoBanco.status == Status.ausente) {
+                const erro = agendamento.status == Status.realizado ? "Ausente" : "Realizado";             
+                throw new Error(`O serviço para esse agendamento já foi concluído devido ao seu status ${erro}!`);
+            } 
             
             agendamentoBanco = { ...agendamentoBanco, ...agendamento };
             
@@ -172,6 +171,7 @@ export class Scheduling {
             const retorno = await trx("scheduling")
               .select("*")
               .where("usuario_id", usuario_id)
+              .andWhere("status", Status.pendente)
               .update({ status: Status.cancelado });
         
             trx.commit();

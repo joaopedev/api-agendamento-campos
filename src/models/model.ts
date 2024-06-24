@@ -48,7 +48,7 @@ export interface SchedulingModel {
   usuario_id: string,
   servico: TipoServico,
   description: string,
-  duracao_estimada: Date,
+  duracao_atendimento: number,
   data_hora: Date,
   cras: Cras,
   status: Status
@@ -75,12 +75,12 @@ export enum Cras {
   MORRO_DO_COCO,
   TAPERA
 }
-    
-export enum ErrosBDModel {
-  UNIQUE_VIOLATION = 23505,
-}
 
 export enum TipoServico {
   cadastramento = 1,
   outros
+}
+
+export enum ErrosBDModel {
+  UNIQUE_VIOLATION = 23505,
 }
