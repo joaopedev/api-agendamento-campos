@@ -1,6 +1,7 @@
 import { UserModel, SchedulingModel, Cras, HTTP_ERRORS, Status } from './../models/model';
 import { Usuario } from "./usuario";
 import { validate as isUUID } from 'uuid';
+import { parseISO, isEqual } from 'date-fns';
 import DbInstance from '../connectionManager';
 
 export class Scheduling {
@@ -44,7 +45,8 @@ export class Scheduling {
 
     private static async isSchedulingUserConflict(usuario_id: string, data_hora: Date): Promise<boolean> {
         // Converter a data para o formato YYYY-MM-DD
-        const data_hora_iso = data_hora.toISOString().substring(0, 10);
+        const newDataHora = new Date(data_hora);
+        const data_hora_iso = newDataHora.toISOString().substring(0, 10);
         
         const knex = DbInstance.getInstance();
 
@@ -64,9 +66,10 @@ export class Scheduling {
 
     private static async isSchedulingDayConflict(cras: Cras, data_hora: Date): Promise<boolean> {
         // Converter a data para o formato YYYY-MM-DD
-        const data_hora_iso = data_hora.toISOString().substring(0, 10);
+        const newDataHora = new Date(data_hora);
+        const data_hora_iso = newDataHora.toISOString().substring(0, 10);
          // Obtendo a hora da data
-        const hora = data_hora.getHours();
+        const hora = newDataHora.getHours();
 
         const knex = DbInstance.getInstance();
 
@@ -104,17 +107,7 @@ export class Scheduling {
 
         try {
 
-            let existeAgendamento = await this.isSchedulingUserConflict(agendamento.usuario_id, agendamento.data_hora)
-
-            if(existeAgendamento) {
-                throw new Error((HTTP_ERRORS.CONFLICT, "Você já possuí agendamento para este dia!"));
-            }
-
-            const NaotemVaga = await this.isSchedulingDayConflict(agendamento.cras, agendamento.data_hora);
-
-            if(NaotemVaga) {
-                throw new Error("Este horário escolhido não está disponível, por favor escolha outro horário!");
-            }
+            await this.verificaDataHoraAgendamento(agendamento, false); 
 
             await trx("scheduling").insert(agendamento);
             trx.commit();
@@ -136,11 +129,18 @@ export class Scheduling {
         try {
 
             let agendamentoBanco = await this.getScheduleById(agendamento.id);
+
             if (!agendamentoBanco) throw new Error("Esse agendamento não existe!");
+
             if (agendamentoBanco.status == Status.realizado || agendamentoBanco.status == Status.ausente) {
                 const erro = agendamento.status == Status.realizado ? "Ausente" : "Realizado";             
                 throw new Error(`O serviço para esse agendamento já foi concluído devido ao seu status ${erro}!`);
             } 
+
+            const dataFormatadaFront = new Date(agendamento.data_hora);
+            const dataFormatadaBanco = new Date(agendamentoBanco.data_hora);
+
+            if(!isEqual(dataFormatadaFront, dataFormatadaBanco)) await this.verificaDataHoraAgendamento(agendamento, true);
             
             agendamentoBanco = { ...agendamentoBanco, ...agendamento };
             
@@ -182,6 +182,25 @@ export class Scheduling {
             trx.rollback();
             throw error;
         }
+    }
+
+    private static async verificaDataHoraAgendamento(agendamento: SchedulingModel, ehUpdate: boolean): Promise<void> {
+
+        if(!ehUpdate) {
+
+            let existeAgendamento = await this.isSchedulingUserConflict(agendamento.usuario_id, agendamento.data_hora)
+    
+            if(existeAgendamento) {
+                throw new Error((HTTP_ERRORS.CONFLICT, "Você já possuí agendamento para este dia!"));
+            }
+        }
+
+        const NaotemVaga = await this.isSchedulingDayConflict(agendamento.cras, agendamento.data_hora);
+
+        if(NaotemVaga) {
+            throw new Error("Este horário escolhido não está disponível, por favor escolha outro horário!");
+        }
+
     }
 
     //ESTÁ IMPLEMENTADO APENAS PARA SUPERADMIN, ADMINS DEVEM FAZER SOMENTE EXCLUSÃO LÓGICA COM STATUS 0 'CANCELADO'
