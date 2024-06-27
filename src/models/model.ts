@@ -30,6 +30,22 @@ export interface UserModel {
   [key: string]: any;
 }
 
+export interface EmployeeModel {
+  id?: string;
+  name: string;
+  email?: string;
+  cpf: string;
+  dataNascimento: string;
+  password: string;
+  telefone: string;
+  tipoUsuario: TipoUsuario;
+  cras: Cras;
+  ativo: boolean;
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
+  [key: string]: any;
+}
+
 interface Endereco {
   rua: string;
   numero: number;
@@ -43,15 +59,15 @@ export enum TipoUsuario {
 }
 
 export interface SchedulingModel {
-  id?: string,
-  name: string,
-  usuario_id: string,
-  servico: TipoServico,
-  description: string,
-  duracao_atendimento: number,
-  data_hora: Date,
-  cras: Cras,
-  status: Status
+  id?: string;
+  name: string;
+  usuario_id: string;
+  servico: TipoServico;
+  description: string;
+  duracao_atendimento: number;
+  data_hora: Date;
+  cras: Cras;
+  status: Status;
 }
 
 export enum Status {
@@ -80,10 +96,9 @@ export enum Cras {
 
 export enum TipoServico {
   cadastramento = 1,
-  outros
+  outros,
 }
 
 export enum ErrosBDModel {
   UNIQUE_VIOLATION = 23505,
-
 }
