@@ -135,7 +135,7 @@ export = (app: Application) => {
       
       const usuarioProprietario = usuario.id == agendamento.usuario_id;
 
-      if(usuario.tipoUsuario == TipoUsuario.comum && !usuarioProprietario) 
+      if(usuario.tipo_usuario == TipoUsuario.comum && !usuarioProprietario) 
         return next(createError(HTTP_ERRORS.BAD_REQUEST, "Você não tem permissão para alterar esse agendamento!"));
 
       agendamento = { ...agendamento ,...req.body };
@@ -168,7 +168,7 @@ export = (app: Application) => {
         );
       }
 
-      if(superAdmin.tipoUsuario != TipoUsuario.superAdmin) 
+      if(superAdmin.tipo_usuario != TipoUsuario.superAdmin) 
         return next(createError(HTTP_ERRORS.BAD_REQUEST, "Você não tem permissão para excluir esse agendamento!"));
 
       await Scheduling.deleteSchedule(agendamentoDelete.id)

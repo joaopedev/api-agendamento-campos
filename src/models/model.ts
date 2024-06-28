@@ -18,15 +18,15 @@ export interface UserModel {
   name: string;
   email?: string;
   cpf: string;
-  dataNascimento: string;
+  data_nascimento: string;
   password: string;
   telefone: string;
   endereco: Endereco;
-  tipoUsuario: TipoUsuario;
+  tipo_usuario: TipoUsuario;
   cras: Cras;
   ativo: boolean;
-  passwordResetToken?: string;
-  passwordResetExpires?: Date;
+  password_reset_token?: string;
+  password_reset_expires?: Date;
   [key: string]: any;
 }
 
