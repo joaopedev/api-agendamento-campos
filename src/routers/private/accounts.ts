@@ -93,7 +93,7 @@ export = (app: Application) => {
           createError(HTTP_ERRORS.BAD_REQUEST, 'Id para exclusão Invalido!')
         );
 
-      if (usuarioAdmin.tipoUsuario != TipoUsuario.superAdmin)
+      if (usuarioAdmin.tipo_usuario != TipoUsuario.superAdmin)
         return next(
           createError(
             HTTP_ERRORS.BAD_REQUEST,

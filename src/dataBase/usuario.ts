@@ -22,8 +22,9 @@ export class Usuario {
     const funcionarios: UserModel[] = await knex('usuarios')
       .select('*')
       .where('cras', cras)
-      .andWhere('tipoUsuario', TipoUsuario.admin)
+      .andWhere('tipo_usuario', TipoUsuario.admin)
       .orderBy('id');
+      
     if (!funcionarios || funcionarios.length <= 0)
       throw new Error(
         `Náo há nenhum funcionário cadastrado no Cras ${Cras[cras]}!`
