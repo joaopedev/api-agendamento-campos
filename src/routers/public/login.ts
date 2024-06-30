@@ -42,6 +42,11 @@ export = (app: Application) => {
                     {
                         email: usuario.email,
                         id: usuario.id,
+                        tipo_usuario: usuario.tipo_usuario,
+                        cras: usuario.cras,
+                        name: usuario.name,
+                        cpf: usuario.cpf,
+                        bairro: usuario.endereco.rua
                     },
                         `${process.env.JW_TOKEN}`,
                     {
