@@ -46,7 +46,11 @@ export = (app: Application) => {
                         cras: usuario.cras,
                         name: usuario.name,
                         cpf: usuario.cpf,
-                        bairro: usuario.endereco.rua
+                        endereco: {
+                            rua: usuario.endereco.rua,
+                            numero: usuario.endereco.numero,
+                            bairro: usuario.endereco.bairro
+                        }
                     },
                         `${process.env.JW_TOKEN}`,
                     {
