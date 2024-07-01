@@ -30,22 +30,6 @@ export interface UserModel {
   [key: string]: any;
 }
 
-export interface EmployeeModel {
-  id?: string;
-  name: string;
-  email?: string;
-  cpf: string;
-  dataNascimento: string;
-  password: string;
-  telefone: string;
-  tipoUsuario: TipoUsuario;
-  cras: Cras;
-  ativo: boolean;
-  passwordResetToken?: string;
-  passwordResetExpires?: Date;
-  [key: string]: any;
-}
-
 interface Endereco {
   rua: string;
   numero: number;

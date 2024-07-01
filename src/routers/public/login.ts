@@ -50,7 +50,8 @@ export = (app: Application) => {
                             rua: usuario.endereco.rua,
                             numero: usuario.endereco.numero,
                             bairro: usuario.endereco.bairro
-                        }
+                        },
+                        telefone: usuario.telefone
                     },
                         `${process.env.JW_TOKEN}`,
                     {
