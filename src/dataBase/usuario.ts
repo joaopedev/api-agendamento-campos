@@ -1,4 +1,4 @@
-import { Cras, EmployeeModel, TipoUsuario, UserModel } from './../models/model';
+import { Cras, TipoUsuario, UserModel } from './../models/model';
 import { validate as isUUID } from 'uuid';
 import DbInstance from '../connectionManager';
 import { Scheduling } from './scheduling';
@@ -89,35 +89,6 @@ export class Usuario {
       await trx.commit();
 
       return usuario;
-    } catch (error) {
-      await trx.rollback();
-      throw error;
-    }
-  }
-
-  public static async createEmployee(
-    funcionario: EmployeeModel
-  ): Promise<EmployeeModel> {
-    if (funcionario.password.length < 8) {
-      throw new Error('A senha deve ter pelo menos 8 caracteres');
-    }
-
-    const knex = DbInstance.getInstance();
-    const trx = await knex.transaction();
-
-    try {
-      const existingUser = await trx('usuarios')
-        .where({ cpf: funcionario.cpf })
-        .first();
-
-      if (existingUser) {
-        throw new Error('Este cpf já possui cadastro!');
-      }
-
-      await trx('usuarios').insert(funcionario);
-      await trx.commit();
-
-      return funcionario;
     } catch (error) {
       await trx.rollback();
       throw error;
