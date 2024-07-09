@@ -79,6 +79,7 @@ export class Scheduling {
             .where('cras', cras)
             .whereRaw('DATE(data_hora) = ?', [data_hora_iso]) // Filtra pela data
             .whereRaw('EXTRACT(HOUR FROM data_hora) = ?', [hora]) // Filtra pela hora
+            .andWhere('status', Status.pendente)
             .count({ count: '*' })
             .first();
     

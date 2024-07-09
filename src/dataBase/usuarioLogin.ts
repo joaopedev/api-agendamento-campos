@@ -1,5 +1,5 @@
 import DbInstance from "../connectionManager";
-import { UserModel } from "../models/model";
+import { Cras, UserModel } from "../models/model";
 import { comparePasswords, generateToken } from "../utils/bcrypFunctions"
 import * as nodemailer from 'nodemailer';
 
@@ -21,6 +21,8 @@ export class UserLogin{
           if (!usuarioBanco) return reject(new Error("Nenhum usuário encontrado com este cpf!"));
 
           const user: UserModel = usuarioBanco;
+
+          if(!user.ativo) return reject(new Error(`Este usuário está inativo, entre em contato com o suporte no CRAS de ${Cras[user.cras].replace("_", " ")}!`));
 
           if (!comparePasswords(senha, user.password)) return reject(new Error("Senha incorreta!"));
             
