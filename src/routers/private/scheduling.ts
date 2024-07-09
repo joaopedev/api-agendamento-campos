@@ -71,7 +71,7 @@ export = (app: Application) => {
           });
         })
         .catch((erro) => {
-          next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS, "O cras informado não existe!"));
+          next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS, erro));
         });
     }
   );
