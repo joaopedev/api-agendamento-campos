@@ -55,6 +55,7 @@ export class Scheduling {
             const existingScheduling = await knex('scheduling')
               .where('usuario_id', usuario_id)
               .whereRaw('DATE(data_hora) = ?', [data_hora_iso])
+              .andWhere('status', Status.pendente)
               .first();
           
             return !!existingScheduling;
@@ -91,7 +92,7 @@ export class Scheduling {
             const funcionarios: UserModel[] = await Usuario.getFuncionariosByCras(cras);
             if (!funcionarios || funcionarios.length <= 0) throw new Error('O cras informado é inválido ou não possuí funcionários cadastrados!');
 
-
+            console.log(numAgendamentosCount, funcionarios.length)
             return numAgendamentosCount >= funcionarios.length;
 
         } catch (error) {

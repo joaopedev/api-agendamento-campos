@@ -22,7 +22,7 @@ export class Usuario {
     const funcionarios: UserModel[] = await knex('usuarios')
       .select('*')
       .where('cras', cras)
-      .andWhere('tipo_usuario', TipoUsuario.admin)
+      .andWhereNot('tipo_usuario', TipoUsuario.comum)
       .orderBy('id');
       
     if (!funcionarios || funcionarios.length <= 0)

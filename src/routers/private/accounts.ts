@@ -40,6 +40,24 @@ export = (app: Application) => {
     }
   );
 
+  app.get(
+    '/private/accountByCpf/:cpf',
+    async (req: Request, res: Response, next: NextFunction) => {
+      let cpf_usuario = req.params.cpf;
+
+      await Usuario.getUserByCpf(cpf_usuario)
+        .then(conta => {
+          res.json({
+            message: 'Conta recuperada com sucesso',
+            contas: conta,
+          });
+        })
+        .catch(erro => {
+          next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS, erro));
+        });
+    }
+  );
+
   app.put(
     '/private/updateAccount/:id',
     async (req: Request, res: Response, next: NextFunction) => {
