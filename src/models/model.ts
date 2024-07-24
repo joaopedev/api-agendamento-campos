@@ -88,7 +88,7 @@ export enum ErrosBDModel {
 }
 
 export interface BloqueioAgendamentoModel {
-  id?: number;
+  id?: string;
   usuario_id: string;
   cras: number;
   data: Date;

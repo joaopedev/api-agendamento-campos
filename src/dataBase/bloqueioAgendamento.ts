@@ -17,7 +17,7 @@ export class BloqueioAgendamento {
         return diasBloqueio;
     }
 
-    public static async getBloqueioAgendamentoById(id: number): Promise<BloqueioAgendamentoModel> {
+    public static async getBloqueioAgendamentoById(id: string): Promise<BloqueioAgendamentoModel> {
         const knex = DbInstance.getInstance();
 
         let diaBloqueio: BloqueioAgendamentoModel = await knex("bloqueio_agendamento").select("*").where("id", id).first();

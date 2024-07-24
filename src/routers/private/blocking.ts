@@ -1,10 +1,11 @@
-import { BloqueioAgendamentoModel } from './../../models/model';
+import { BloqueioAgendamentoModel, TipoUsuario, UserModel } from './../../models/model';
 import { Application, NextFunction, Request, Response } from 'express';
 import { BloqueioAgendamento } from "../../dataBase/bloqueioAgendamento";
 import createError from 'http-errors';
 import { HTTP_ERRORS } from '../../models/model';
 import { body, validationResult } from 'express-validator';
 import { tratarErro } from '../../utils/errors';
+import { Usuario } from '../../dataBase/usuario';
 
 
 export = (app: Application) => {
@@ -44,7 +45,7 @@ export = (app: Application) => {
     );
 
     app.post(
-        "/private/registerScheduling",
+        "/private/registerBlock",
         body("usuario_id").notEmpty(),
         body("data").notEmpty(),
         body("tipo_bloqueio").notEmpty(),
@@ -80,6 +81,41 @@ export = (app: Application) => {
                 console.error(erro);
                 next(createError(HTTP_ERRORS.ERRO_INTERNO, tratarErro(erro)));
             }); 
+        }
+    )
+
+    app.put(
+        '/private/updateBlock/',
+        async (req: Request, res: Response, next: NextFunction) => {
+            let bloqueioId = req.query.id?.toString() ?? "";
+            let usuarioParaAlteracao = req.query.usuario_id?.toString() ?? "";
+
+            let bloqueio: BloqueioAgendamentoModel = await BloqueioAgendamento.getBloqueioAgendamentoById(bloqueioId);
+            let usuario: UserModel = await Usuario.getUserById(usuarioParaAlteracao);
+
+            if(!usuario || !bloqueio.id){
+                const erro = usuario ? "o agendamentoId é" : "o usuario_id é"; 
+                return next(
+                  createError(HTTP_ERRORS.BAD_REQUEST, `${erro} inválido`)
+                );
+            }
+
+            if(usuario.tipo_usuario != TipoUsuario.superAdmin) 
+                return next(createError(HTTP_ERRORS.BAD_REQUEST, "Você não tem permissão para atualizar esse bloqueio!"))
+
+            if(!bloqueio.ativo)
+                return next(createError(HTTP_ERRORS.BAD_REQUEST, "Este bloqueio ja foi cancelado!"))
+
+            bloqueio = {...bloqueio, ...req.body}
+
+            await BloqueioAgendamento.updateBloqueioAgendamento(bloqueio)
+            .then(() => {
+                res.json({ message: "Bloqueio atualizado com sucesso!" });
+              })
+              .catch((erro) => {
+                  console.error(erro);
+                  next(createError(HTTP_ERRORS.ERRO_INTERNO, tratarErro(erro)));
+              }); 
         }
     )
 }
