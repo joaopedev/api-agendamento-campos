@@ -1,4 +1,4 @@
-import { UserModel, SchedulingModel, Cras, HTTP_ERRORS, Status } from './../models/model';
+import { UserModel, SchedulingModel, Cras, HTTP_ERRORS, Status, TipoUsuario, BloqueioAgendamentoModel } from './../models/model';
 import { Usuario } from "./usuario";
 import { validate as isUUID } from 'uuid';
 import { parseISO, isEqual } from 'date-fns';
@@ -38,6 +38,16 @@ export class Scheduling {
         const knex = DbInstance.getInstance();
 
         let agendamentos: SchedulingModel[] = await knex("scheduling").select("*").where("usuario_id", usuario_id).orderBy("id");
+        if(!agendamentos || agendamentos.length <= 0) throw new Error("Náo há nenhum agendamento para este usuário!");
+
+        return agendamentos;
+    }
+
+    public static async getScheduleByDate(data: Date): Promise<SchedulingModel[]> {
+        if(!data) throw new Error('Data inválida!');
+        const knex = DbInstance.getInstance();
+
+        let agendamentos: SchedulingModel[] = await knex("scheduling").select("*").where("usuario_id", data).orderBy("id");
         if(!agendamentos || agendamentos.length <= 0) throw new Error("Náo há nenhum agendamento para este usuário!");
 
         return agendamentos;
@@ -202,6 +212,69 @@ export class Scheduling {
             throw new Error("Este horário escolhido não está disponível, por favor escolha outro horário!");
         }
 
+    }
+
+    public static async verificaAgendamentosDataBloqueio(diaBloqueio: BloqueioAgendamentoModel): Promise<void> {
+
+        const dataString = diaBloqueio.data.toISOString().split('T')[0];
+
+        // Define os intervalos de tempo com base no tipo de bloqueio
+        let horaInicio: string;
+        let horaFim: string;
+
+        switch (diaBloqueio.tipo_bloqueio) {
+            case 'matutino':
+                horaInicio = '08:00:00';
+                horaFim = '12:00:00';
+                break;
+            case 'vespertino':
+                horaInicio = '13:00:00';
+                horaFim = '17:00:00';
+                break;
+            case 'diario':
+                horaInicio = '08:00:00';
+                horaFim = '17:00:00';
+                break;
+            default:
+                throw new Error('Tipo de bloqueio inválido');
+        }
+
+        const knex = DbInstance.getInstance();
+        const trx = await knex.transaction();
+
+        try {
+
+            //consulta para verificar os agendamentos que se encontram conflitantes com a data de bloqueio através da horaInicio e horaFim
+            const agendamentos: SchedulingModel[] = await trx("scheduling")
+              .select("*")
+              .whereRaw('DATE(data_hora) = ?', [dataString])
+              .andWhere('cras', diaBloqueio.cras)
+              .andWhere('status', Status.pendente)
+              .andWhere(builder => {
+                builder
+                    .whereRaw('TIME(data_hora) >= ?', [horaInicio])
+                    .andWhereRaw('TIME(data_hora) <= ?', [horaFim]);
+            });
+
+            if(agendamentos.length > 0) {
+                const agendamentosId: string[] = agendamentos.map((a: any) => a.id);
+
+                if (agendamentosId.length > 0){
+
+                    //atualiza todos os agendamentos que eram conflitantes para o status cancelado devido ao bloqueio da data
+                    await trx("scheduling")
+                        .whereIn('id', agendamentosId)
+                        .update({ status: Status.cancelado, description: 'Agendamento cancelado devido a bloqueio da admnistração do CRAS.' });
+                        
+                    trx.commit();
+                }
+
+            }
+                    
+        } catch (error) {
+            trx.rollback();
+            throw error;
+        }
     }
 
     //ESTÁ IMPLEMENTADO APENAS PARA SUPERADMIN, ADMINS DEVEM FAZER SOMENTE EXCLUSÃO LÓGICA COM STATUS 0 'CANCELADO'
