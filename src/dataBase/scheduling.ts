@@ -216,7 +216,8 @@ export class Scheduling {
 
     public static async verificaAgendamentosDataBloqueio(diaBloqueio: BloqueioAgendamentoModel): Promise<void> {
 
-        const dataString = diaBloqueio.data.toISOString().split('T')[0];
+        const newDataHora = new Date(diaBloqueio.data);
+        const dataString = newDataHora.toISOString().substring(0, 10);
 
         // Define os intervalos de tempo com base no tipo de bloqueio
         let horaInicio: string;
@@ -224,16 +225,16 @@ export class Scheduling {
 
         switch (diaBloqueio.tipo_bloqueio) {
             case 'matutino':
-                horaInicio = '08:00:00';
-                horaFim = '12:00:00';
+                horaInicio = '08';
+                horaFim = '12';
                 break;
             case 'vespertino':
-                horaInicio = '13:00:00';
-                horaFim = '17:00:00';
+                horaInicio = '13';
+                horaFim = '17';
                 break;
             case 'diario':
-                horaInicio = '08:00:00';
-                horaFim = '17:00:00';
+                horaInicio = '08';
+                horaFim = '17';
                 break;
             default:
                 throw new Error('Tipo de bloqueio inválido');
@@ -252,8 +253,8 @@ export class Scheduling {
               .andWhere('status', Status.pendente)
               .andWhere(builder => {
                 builder
-                    .whereRaw('TIME(data_hora) >= ?', [horaInicio])
-                    .andWhereRaw('TIME(data_hora) <= ?', [horaFim]);
+                    .whereRaw('EXTRACT(HOUR FROM data_hora) >= ?', [horaInicio])
+                    .andWhereRaw('EXTRACT(HOUR FROM data_hora) <= ?', [horaFim]);
             });
 
             if(agendamentos.length > 0) {
