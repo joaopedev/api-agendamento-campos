@@ -43,16 +43,6 @@ export class Scheduling {
         return agendamentos;
     }
 
-    public static async getScheduleByDate(data: Date): Promise<SchedulingModel[]> {
-        if(!data) throw new Error('Data inválida!');
-        const knex = DbInstance.getInstance();
-
-        let agendamentos: SchedulingModel[] = await knex("scheduling").select("*").where("usuario_id", data).orderBy("id");
-        if(!agendamentos || agendamentos.length <= 0) throw new Error("Náo há nenhum agendamento para este usuário!");
-
-        return agendamentos;
-    }
-
     private static async isSchedulingUserConflict(usuario_id: string, data_hora: Date): Promise<boolean> {
         // Converter a data para o formato YYYY-MM-DD
         const newDataHora = new Date(data_hora);
