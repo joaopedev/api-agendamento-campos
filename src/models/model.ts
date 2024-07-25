@@ -86,3 +86,13 @@ export enum TipoServico {
 export enum ErrosBDModel {
   UNIQUE_VIOLATION = 23505,
 }
+
+export interface BloqueioAgendamentoModel {
+  id?: string;
+  usuario_id: string;
+  cras: number;
+  data: Date;
+  tipo_bloqueio: 'matutino' | 'vespertino' | 'diario'; // Tipos de bloqueio
+  motivo: string;
+  ativo: boolean;
+}
