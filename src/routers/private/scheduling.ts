@@ -86,12 +86,8 @@ export = (app: Application) => {
       const errors = validationResult(req);
 
       if (!errors.isEmpty()) {
-        const msgBugada = JSON.stringify(errors.array()[0]);
-        const msgFormatada = msgBugada.substring(1, msgBugada.length - 1).replace(/\\/g, '');
-
-        return next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS,
-          msgFormatada)
-        );
+        const message = errors.array().map( erro => erro.msg);
+        next(createError(HTTP_ERRORS.BAD_REQUEST, message[0]));
       }
       
       const agendamento: SchedulingModel = { ...req.body };

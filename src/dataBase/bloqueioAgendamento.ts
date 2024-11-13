@@ -35,24 +35,30 @@ export class BloqueioAgendamento {
         return diaBloqueio;
     }
 
-    public static async createBloqueioAgendamento(diaBloqueio: BloqueioAgendamentoModel): Promise<boolean> {
-        if (!diaBloqueio) throw new Error("Bloqueio de data inválido!");
+    public static async createBloqueioAgendamento(bloqueios: BloqueioAgendamentoModel[]): Promise<string[]> {
+        if (!bloqueios || bloqueios.length == 0) throw new Error("Bloqueio de data inválido!");
         
+        const msg:string [] = [];
         const knex = DbInstance.getInstance();
         const trx = await knex.transaction();
 
         try {
 
-            const user = await Usuario.getUserById(diaBloqueio.usuario_id);
-            if(user.tipo_usuario != TipoUsuario.superAdmin) throw new Error("Você não tem permissão para bloquear datas para agendamentos!");
-
-            await Scheduling.verificaAgendamentosDataBloqueio(diaBloqueio);
-
-            await trx("bloqueio_agendamento").insert(diaBloqueio);
-            trx.commit();
-
-            return !!diaBloqueio;
-          
+            for (const bloqueio of bloqueios) {
+                const user = await Usuario.getUserById(bloqueio.usuario_id);
+                if (user.tipo_usuario !== TipoUsuario.superAdmin) {
+                    throw new Error("Você não tem permissão para bloquear datas para agendamentos!");
+                }
+    
+                await Scheduling.verificaAgendamentosDataBloqueio(bloqueio);
+    
+                // Insere o bloqueio na tabela dentro da transação
+                await trx("bloqueio_agendamento").insert(bloqueio);
+                msg.push(`Bloqueio do tipo ${bloqueio.tipo_bloqueio} para o cras ${Cras[bloqueio.cras]} na data ${bloqueio.data.toLocaleDateString('pt-BR')}`);
+            }
+    
+            await trx.commit();
+            return msg;
         } catch (error) {
             trx.rollback();
             throw error;

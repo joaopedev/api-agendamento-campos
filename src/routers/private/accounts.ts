@@ -66,18 +66,18 @@ export = (app: Application) => {
       if (!usuario)
         return next(createError(HTTP_ERRORS.BAD_REQUEST, 'Id Invalido!'));
 
-      const propsEnviadas: { [key: string]: any } = req.body;
+      const propsEnviadas: { [key: string]: any } = req.body;                    //recebe as props da requisição e lê os nomes como key do tipo string
 
-      for (const prop in propsEnviadas) {
-        if (Object.hasOwnProperty.call(propsEnviadas, prop)) {
-          if (prop == 'password') {
+      for (const prop in propsEnviadas) {                                        // for que varre as prop da requisição
+        if (Object.hasOwnProperty.call(propsEnviadas, prop)) {                   //validação se a prop do loop se encontra de fato com valor dentro do objeto PAI
+          if (prop == 'password') {                                              // validação do nome da prop para password para caso for, fazer o hash do password.
             if (!comparePasswords(req.body.password, usuario.password)) {
               const hashPassword = encodePassword(req.body.password);
               usuario.password = hashPassword;
             }
           }
 
-          if (usuario.hasOwnProperty(prop) && prop != 'password') {
+          if (usuario.hasOwnProperty(prop) && prop != 'password') {             //validação para atribuir valor a todas as prop do usuario que não seja o password.
             usuario[prop] = propsEnviadas[prop];
           }
         }

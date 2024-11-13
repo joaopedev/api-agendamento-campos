@@ -1,4 +1,4 @@
-import { BloqueioAgendamentoModel, TipoUsuario, UserModel } from './../../models/model';
+import { BloqueioAgendamentoModel, Cras, TipoUsuario, UserModel } from './../../models/model';
 import { Application, NextFunction, Request, Response } from 'express';
 import { BloqueioAgendamento } from "../../dataBase/bloqueioAgendamento";
 import createError from 'http-errors';
@@ -46,36 +46,48 @@ export = (app: Application) => {
 
   app.post(
     "/private/registerBlock",
-    body("usuario_id").notEmpty(),
-    body("data").notEmpty(),
-    body("tipo_bloqueio").notEmpty(),
-    body("cras").notEmpty(),
+    body().isArray(),
 
     async (req: Request, res: Response, next: NextFunction) => {
       const errors = validationResult(req);
 
       if (!errors.isEmpty()) {
-        const msgBugada = JSON.stringify(errors.array()[0]);
-        const msgFormatada = msgBugada.substring(1, msgBugada.length - 1).replace(/\\/g, '');
-
-        return next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS,
-          msgFormatada)
-        );
+        const message = errors.array().map( erro => erro.msg);
+        next(createError(HTTP_ERRORS.BAD_REQUEST, message[0]));
       }
+      
+      //A req.body vem como um falso array indexado, sendo necessário transformar em array para então mapear e validar os dados.
+      const bloqueiosReq: [] = { ...req.body }
+      const bloqueioArray = Object.values(bloqueiosReq); //transforma o objeto indexado (falso array) em um array verdadeiro
 
-      const bloqueio: BloqueioAgendamentoModel = { ...req.body }
-      bloqueio.data = new Date(req.body.data);
+      let erroBool: boolean = false;
+      let erroMsg: string[] = [];
+      let erroMsgUnificado: string = '';
+      
+      bloqueioArray.forEach( (bloqueio: BloqueioAgendamentoModel) => { //validações unitárias das props de bloqueio
+        if (!bloqueio.usuario_id || !bloqueio.data) {
+          const prop = bloqueio.usuario_id ? "data" : "usuario_id"; 
+          erroMsg.push(`É obrigatório informar a propriedade ${prop}`)
+          erroBool = true;
+        }
+        if (!bloqueio.cras || !bloqueio.tipo_bloqueio) {
+          const prop = bloqueio.cras ? "tipo_bloqueio" : "cras";
+          erroMsg.push(`É obrigatório informar a propriedade ${prop}`) 
+          erroBool = true;
+        }
+        erroMsgUnificado = erroMsg.join(", ")
+      })
+      
+      if(erroBool) return next(createError(HTTP_ERRORS.BAD_REQUEST, erroMsgUnificado));
 
-      if (!bloqueio.usuario_id || !bloqueio.data) {
-        const erro = bloqueio.usuario_id ? "data" : "usuario_id"; 
-        return next(
-          createError(HTTP_ERRORS.BAD_REQUEST, `${erro} inválido`)
-        );
-      }
+      //faz a tipagem do array e converte a data para o tipo necessário
+      const bloqueiosMapeados: BloqueioAgendamentoModel[] = bloqueioArray.map((bloqueio: BloqueioAgendamentoModel) => {
+        return { ...bloqueio, data: new Date(bloqueio.data)};
+      })
 
-      await BloqueioAgendamento.createBloqueioAgendamento(bloqueio)
+      await BloqueioAgendamento.createBloqueioAgendamento(bloqueiosMapeados)
       .then((result) => {
-        res.json({ message: "bloqueio criado com sucesso!", result });
+        res.json({ message: "bloqueio(s) criados com sucesso!", result });
       })
       .catch((erro) => {
         console.error(erro);

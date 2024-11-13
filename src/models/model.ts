@@ -27,7 +27,7 @@ export interface UserModel {
   ativo: boolean;
   password_reset_token?: string;
   password_reset_expires?: Date;
-  [key: string]: any;
+  [key: string]: any; //key necessária para atualizar o usuário na requisição de update, utilizando um FOR para leitura das props
 }
 
 interface Endereco {
