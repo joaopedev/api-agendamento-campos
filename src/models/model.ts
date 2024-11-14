@@ -71,7 +71,7 @@ export enum Cras {
   PENHA,
   GOYTACAZES,
   PARQUE_GUARUS,
-  TRAVESSAO,
+  TRAVESSÃO,
   MORRO_DO_COCO,
   FAROL,
   JOCKEY,
