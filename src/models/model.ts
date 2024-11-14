@@ -69,13 +69,14 @@ export enum Cras {
   CHATUBA,
   MATADOURO,
   PENHA,
-  GOYTACAZES,
+  GOITACAZES,
   PARQUE_GUARUS,
-  TRAVESSAO,
+  TRAVESSÃO,
   MORRO_DO_COCO,
   FAROL,
   JOCKEY,
   URURAÍ,
+  PRAÇA_CÉU,
 }
 
 export enum TipoServico {
