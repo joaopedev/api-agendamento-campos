@@ -76,6 +76,7 @@ export enum Cras {
   FAROL,
   JOCKEY,
   URURAÍ,
+  PRAÇA_CÉU,
 }
 
 export enum TipoServico {
