@@ -5,6 +5,8 @@ import cors from "cors";
 import { HTTP_ERRORS } from "./models/model";
 import DbInstance from "./connectionManager";
 import  rateLimit  from "express-rate-limit"
+// import { RabbitMQService } from "./config/rabbitmq";
+// import  { startWorker }  from "./config/worker"
 
 const consign = require("consign");
 require("dotenv").config();
@@ -54,6 +56,7 @@ app.use((error: any, req: Request, res: Response, next: NextFunction) => {
 
 const server = app.listen(Number(process.env.PORT), () => {
   console.log(`Servidor rodando na porta ${process.env.PORT}`);
+  //startWorker(); Inicia o worker assim que o servidor estiver rodando => Quando for usar o rabbitMq
 });
 
 const shutdown = async () => {

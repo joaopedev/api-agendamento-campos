@@ -96,3 +96,10 @@ export interface BloqueioAgendamentoModel {
   motivo: string;
   ativo: boolean;
 }
+
+
+//interface para uso do RabbitMq quando for necessário
+export interface QueueMessage {
+  type: string,
+  data: object
+}

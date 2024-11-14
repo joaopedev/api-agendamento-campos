@@ -41,7 +41,6 @@ export = (app: Application) => {
                 const token = jwt.sign(
                     {
                         email: usuario.email,
-                        id: usuario.id,
                         tipo_usuario: usuario.tipo_usuario,
                         cras: usuario.cras,
                         name: usuario.name,
