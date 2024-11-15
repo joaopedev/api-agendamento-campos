@@ -109,7 +109,16 @@ export class Scheduling {
 
         try {
 
+            // Verifica se há agendamentos conflitantes
             await this.verificaDataHoraAgendamento(agendamento, false, trx); 
+
+            // Verifica se há bloqueios para o agendamento
+            const existeBloqueio = await this.verificaBloqueioAgendamento(agendamento, trx);
+            //console.log(existeBloqueio)
+            if (existeBloqueio) {
+                console.error('Não é possível agendar devido a um bloqueio na data e horário!');
+                throw new Error("Não é possível agendar devido a um bloqueio na data e horário!");
+            }
 
             await trx("scheduling").insert(agendamento);
             trx.commit();
@@ -184,6 +193,62 @@ export class Scheduling {
             trx.rollback();
             throw error;
         }
+    }
+
+    public static async verificaBloqueioAgendamento(agendamento: SchedulingModel, trx?: Knex.Transaction): Promise<boolean> {
+        
+        const knex = DbInstance.getInstance();
+        const query = trx ? trx('bloqueio_agendamento') : knex('bloqueio_agendamento');
+
+        // Formata a data para comparação
+        const dataString = agendamento.data_hora.toISOString().substring(0, 10);
+
+        // Extrai a hora de início e término do agendamento
+        const horaInicio = agendamento.data_hora.getHours();
+        const horaFim = horaInicio + Math.floor(agendamento.duracao_atendimento / 60); // Usando a duração em minutos para determinar a hora de fim
+
+        // Busca bloqueios existentes para o CRAS e data
+        const bloqueios: BloqueioAgendamentoModel[] = await query
+        .where('cras', agendamento.cras)
+        .andWhereRaw('DATE("data") = ?', [dataString])
+        .andWhere('ativo', true); // Somente bloqueios ativos
+
+        console.log(bloqueios)
+
+        // Verifica se existe algum bloqueio no mesmo dia
+        for (const bloqueio of bloqueios) {
+            let horaBloqueioInicio: number;
+            let horaBloqueioFim: number;
+
+            switch (bloqueio.tipo_bloqueio) {
+                case 'matutino':
+                horaBloqueioInicio = 8;
+                horaBloqueioFim = 12;
+                break;
+                case 'vespertino':
+                horaBloqueioInicio = 13;
+                horaBloqueioFim = 17;
+                break;
+                case 'diario':
+                horaBloqueioInicio = 8;
+                horaBloqueioFim = 17;
+                break;
+                default:
+                throw new Error('Tipo de bloqueio inválido');
+            }
+
+            // Verifica se o horário do agendamento conflita com o bloqueio
+            if (
+                (horaInicio >= horaBloqueioInicio && horaInicio < horaBloqueioFim) ||
+                (horaFim > horaBloqueioInicio && horaFim <= horaBloqueioFim) ||
+                (horaInicio <= horaBloqueioInicio && horaFim >= horaBloqueioFim)
+            ) {
+                return true; // Bloqueio encontrado, impede o agendamento
+            }
+        }
+
+        return false; // Nenhum bloqueio encontrado
+        
     }
 
     private static async verificaDataHoraAgendamento(agendamento: SchedulingModel, ehUpdate: boolean, trx?: Knex.Transaction): Promise<void> {
