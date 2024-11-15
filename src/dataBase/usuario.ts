@@ -2,6 +2,7 @@ import { Cras, TipoUsuario, UserModel } from './../models/model';
 import { validate as isUUID } from 'uuid';
 import DbInstance from '../connectionManager';
 import { Scheduling } from './scheduling';
+import { Knex } from 'knex';
 
 export class Usuario {
   public static async getUsers(): Promise<UserModel[]> {
@@ -15,11 +16,13 @@ export class Usuario {
   }
 
   public static async getFuncionariosByCras(
-    cras: number
+    cras: number,
+    trx?: Knex.Transaction
   ): Promise<UserModel[]> {
-    const knex = DbInstance.getInstance();
 
-    const funcionarios: UserModel[] = await knex('usuarios')
+    const query = trx ? trx('usuarios') : DbInstance.getInstance()('usuarios');
+
+    const funcionarios: UserModel[] = await query
       .select('*')
       .where('cras', cras)
       .andWhereNot('tipo_usuario', TipoUsuario.comum)
@@ -33,12 +36,12 @@ export class Usuario {
     return funcionarios;
   }
 
-  public static async getUserById(id: string): Promise<UserModel> {
+  public static async getUserById(id: string, trx?: Knex.Transaction): Promise<UserModel> {
     if (!isUUID(id)) throw new Error('ID de usuário inválido!');
 
-    const knex = DbInstance.getInstance();
+    const query = trx ? trx('usuarios') : DbInstance.getInstance()('usuarios');
 
-    const user: UserModel = await knex('usuarios')
+    const user: UserModel = await query
       .select('*')
       .where('id', id)
       .first();
@@ -97,12 +100,13 @@ export class Usuario {
 
   public static async updateUser(usuario: UserModel): Promise<UserModel> {
     const idUsuario = usuario.id ?? '';
-    let userBanco: UserModel = await this.getUserById(idUsuario);
-
-    if (!userBanco) throw new Error('O usuário informado não existe!');
-
+    
     const knex = DbInstance.getInstance();
     const trx = await knex.transaction();
+
+    let userBanco: UserModel = await this.getUserById(idUsuario, trx);
+
+    if (!userBanco) throw new Error('O usuário informado não existe!');
 
     try {
       if (userBanco.ativo != usuario.ativo) {
