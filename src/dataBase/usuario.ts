@@ -62,11 +62,10 @@ export class Usuario {
     return user;
   }
 
-  public static async getUserByCpf(cpf: string): Promise<UserModel> {
-    const knex = DbInstance.getInstance();
+  public static async getUserByCpf(cpf: string, trx?: Knex.Transaction): Promise<UserModel> {
+    const query = trx ? trx('usuarios') : DbInstance.getInstance()('usuarios');
 
-    const user = await knex('usuarios').select('*').where('cpf', cpf).first();
-    if (!user) throw new Error('Náo há nenhum usuário com este CPF!');
+    const user = await query.select('*').where('cpf', cpf).first();
 
     return user;
   }
@@ -105,8 +104,14 @@ export class Usuario {
     const trx = await knex.transaction();
 
     let userBanco: UserModel = await this.getUserById(idUsuario, trx);
-
+    
     if (!userBanco) throw new Error('O usuário informado não existe!');
+
+    let existeCpf: UserModel;
+    if(usuario.cpf) {
+      existeCpf = await this.getUserByCpf(usuario.cpf, trx);
+      if(existeCpf && existeCpf.cpf != userBanco.cpf) throw new Error('CPF ja existente no sistema!');
+    }
 
     try {
       if (userBanco.ativo != usuario.ativo) {
@@ -115,7 +120,7 @@ export class Usuario {
           Scheduling.cancelaUserSchedules(usuarioId);
         }
       }
-
+      
       userBanco = { ...userBanco, ...usuario };
 
       await trx('usuarios').where('id', userBanco.id).first().update(userBanco);

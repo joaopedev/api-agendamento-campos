@@ -47,6 +47,9 @@ export = (app: Application) => {
 
       await Usuario.getUserByCpf(cpf_usuario)
         .then(conta => {
+
+          if(!conta) return next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS, 'Não foi encontrado nenhum usuário com este CPF!'));
+
           res.json({
             message: 'Conta recuperada com sucesso',
             contas: conta,
@@ -70,14 +73,18 @@ export = (app: Application) => {
 
       for (const prop in propsEnviadas) {                                        // for que varre as prop da requisição
         if (Object.hasOwnProperty.call(propsEnviadas, prop)) {                   //validação se a prop do loop se encontra de fato com valor dentro do objeto PAI
-          if (prop == 'password') {                                              // validação do nome da prop para password para caso for, fazer o hash do password.
+          
+          if(propsEnviadas[prop] === "") 
+            return next(createError(HTTP_ERRORS.ERRO_INTERNO, `A propriedade ${prop} está vazia, por favor insira um valor válido!`));
+          
+          if (prop == 'password' && (propsEnviadas[prop] && propsEnviadas[prop].length > 0) ) {     // validação de prop para password que confere se possui valor
             if (!comparePasswords(req.body.password, usuario.password)) {
               const hashPassword = encodePassword(req.body.password);
               usuario.password = hashPassword;
             }
           }
-
-          if (usuario.hasOwnProperty(prop) && prop != 'password') {             //validação para atribuir valor a todas as prop do usuario que não seja o password.
+          
+          if (usuario.hasOwnProperty(prop) && propsEnviadas[prop] && prop != 'password') {             //validação para atribuir valor a todas as prop do usuario que não seja o password.
             usuario[prop] = propsEnviadas[prop];
           }
         }
