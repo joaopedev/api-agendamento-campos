@@ -97,7 +97,7 @@ export = (app: Application) => {
       if (!agendamento.usuario_id || !agendamento.data_hora) {
         const erro = agendamento.usuario_id ? "data_hora" : "usuario_id"; 
         return next(
-          createError(HTTP_ERRORS.BAD_REQUEST, `${erro} inválido`)
+          createError(HTTP_ERRORS.BAD_REQUEST, `É obrigatório informar a propriedade ${erro}`)
         );
       }
 

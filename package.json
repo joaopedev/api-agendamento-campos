@@ -18,8 +18,10 @@
   "author": "Joao Pedro Sousa e Silva & Rafael Sibien Pereira.",
   "license": "ISC",
   "dependencies": {
+    "@types/amqplib": "^0.10.5",
     "@types/express-rate-limit": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.6",
+    "amqplib": "^0.10.4",
     "bcrypt": "^5.1.1",
     "consign": "^0.1.6",
     "cors": "^2.8.5",
