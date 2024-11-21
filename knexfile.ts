@@ -20,7 +20,7 @@ module.exports = {
   production: {
     client: "pg",
     ssl: {
-      rejectUnauthorized: true,
+      rejectUnauthorized: false,
     },
     useNullAsDefault: true,
     connection: {
