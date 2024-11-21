@@ -43,6 +43,7 @@ export = (app: Application) => {
                         email: usuario.email,
                         tipo_usuario: usuario.tipo_usuario,
                         cras: usuario.cras,
+                        id: usuario.id,
                         name: usuario.name,
                         cpf: usuario.cpf,
                         endereco: {
