@@ -3,6 +3,7 @@ import { Usuario } from "./usuario";
 import { validate as isUUID } from 'uuid';
 import { parseISO, isEqual } from 'date-fns';
 import DbInstance from '../connectionManager';
+import { Knex } from 'knex';
 
 export class Scheduling {
 
@@ -24,10 +25,10 @@ export class Scheduling {
         return agendamentos;
     }
 
-    public static async getScheduleById(id: string): Promise<SchedulingModel> {
-        const knex = DbInstance.getInstance();
+    public static async getScheduleById(id: string, trx?: Knex.Transaction): Promise<SchedulingModel> {
+        const query = trx ? trx('scheduling') : DbInstance.getInstance()('scheduling');
 
-        let agendamento: SchedulingModel = await knex("scheduling").select("*").where("id", id).first();
+        let agendamento: SchedulingModel = await query.select("*").where("id", id).first();
         if(!agendamento) throw new Error("Náo há nenhum agendamento disponível!");
 
         return agendamento;
@@ -43,16 +44,16 @@ export class Scheduling {
         return agendamentos;
     }
 
-    private static async isSchedulingUserConflict(usuario_id: string, data_hora: Date): Promise<boolean> {
+    private static async isSchedulingUserConflict(usuario_id: string, data_hora: Date, trx?: Knex.Transaction): Promise<boolean> {
         // Converter a data para o formato YYYY-MM-DD
         const newDataHora = new Date(data_hora);
         const data_hora_iso = newDataHora.toISOString().substring(0, 10);
         
-        const knex = DbInstance.getInstance();
+        const query = trx ? trx('scheduling') : DbInstance.getInstance()('scheduling');
 
         try {
             
-            const existingScheduling = await knex('scheduling')
+            const existingScheduling = await query
               .where('usuario_id', usuario_id)
               .whereRaw('DATE(data_hora) = ?', [data_hora_iso])
               .andWhere('status', Status.pendente)
@@ -65,18 +66,18 @@ export class Scheduling {
         }
     }
 
-    private static async isSchedulingDayConflict(cras: Cras, data_hora: Date): Promise<boolean> {
+    private static async isSchedulingDayConflict(cras: Cras, data_hora: Date, trx?: Knex.Transaction): Promise<boolean> {
         // Converter a data para o formato YYYY-MM-DD
         const newDataHora = new Date(data_hora);
         const data_hora_iso = newDataHora.toISOString().substring(0, 10);
          // Obtendo a hora da data
         const hora = newDataHora.getHours();
 
-        const knex = DbInstance.getInstance();
+        const query = trx ? trx('scheduling') : DbInstance.getInstance()('scheduling');
 
         try {
             
-            const numAgendamentos = await knex('scheduling')
+            const numAgendamentos = await query
             .where('cras', cras)
             .whereRaw('DATE(data_hora) = ?', [data_hora_iso]) // Filtra pela data
             .whereRaw('EXTRACT(HOUR FROM data_hora) = ?', [hora]) // Filtra pela hora
@@ -108,7 +109,16 @@ export class Scheduling {
 
         try {
 
-            await this.verificaDataHoraAgendamento(agendamento, false); 
+            // Verifica se há agendamentos conflitantes
+            await this.verificaDataHoraAgendamento(agendamento, false, trx); 
+
+            // Verifica se há bloqueios para o agendamento
+            const existeBloqueio = await this.verificaBloqueioAgendamento(agendamento, trx);
+            //console.log(existeBloqueio)
+            if (existeBloqueio) {
+                console.error('Não é possível agendar devido a um bloqueio na data e horário!');
+                throw new Error("Não é possível agendar devido a um bloqueio na data e horário!");
+            }
 
             await trx("scheduling").insert(agendamento);
             trx.commit();
@@ -129,7 +139,7 @@ export class Scheduling {
 
         try {
 
-            let agendamentoBanco = await this.getScheduleById(agendamento.id);
+            let agendamentoBanco = await this.getScheduleById(agendamento.id, trx);
 
             if (!agendamentoBanco) throw new Error("Esse agendamento não existe!");
 
@@ -141,7 +151,7 @@ export class Scheduling {
             const dataFormatadaFront = new Date(agendamento.data_hora);
             const dataFormatadaBanco = new Date(agendamentoBanco.data_hora);
 
-            if(!isEqual(dataFormatadaFront, dataFormatadaBanco)) await this.verificaDataHoraAgendamento(agendamento, true);
+            if(!isEqual(dataFormatadaFront, dataFormatadaBanco)) await this.verificaDataHoraAgendamento(agendamento, true, trx);
             
             agendamentoBanco = { ...agendamentoBanco, ...agendamento };
             
@@ -185,18 +195,74 @@ export class Scheduling {
         }
     }
 
-    private static async verificaDataHoraAgendamento(agendamento: SchedulingModel, ehUpdate: boolean): Promise<void> {
+    public static async verificaBloqueioAgendamento(agendamento: SchedulingModel, trx?: Knex.Transaction): Promise<boolean> {
+        
+        const knex = DbInstance.getInstance();
+        const query = trx ? trx('bloqueio_agendamento') : knex('bloqueio_agendamento');
+
+        // Formata a data para comparação
+        const dataString = agendamento.data_hora.toISOString().substring(0, 10);
+
+        // Extrai a hora de início e término do agendamento
+        const horaInicio = agendamento.data_hora.getHours();
+        const horaFim = horaInicio + Math.floor(agendamento.duracao_atendimento / 60); // Usando a duração em minutos para determinar a hora de fim
+
+        // Busca bloqueios existentes para o CRAS e data
+        const bloqueios: BloqueioAgendamentoModel[] = await query
+        .where('cras', agendamento.cras)
+        .andWhereRaw('DATE("data") = ?', [dataString])
+        .andWhere('ativo', true); // Somente bloqueios ativos
+
+        console.log(bloqueios)
+
+        // Verifica se existe algum bloqueio no mesmo dia
+        for (const bloqueio of bloqueios) {
+            let horaBloqueioInicio: number;
+            let horaBloqueioFim: number;
+
+            switch (bloqueio.tipo_bloqueio) {
+                case 'matutino':
+                horaBloqueioInicio = 8;
+                horaBloqueioFim = 12;
+                break;
+                case 'vespertino':
+                horaBloqueioInicio = 13;
+                horaBloqueioFim = 17;
+                break;
+                case 'diario':
+                horaBloqueioInicio = 8;
+                horaBloqueioFim = 17;
+                break;
+                default:
+                throw new Error('Tipo de bloqueio inválido');
+            }
+
+            // Verifica se o horário do agendamento conflita com o bloqueio
+            if (
+                (horaInicio >= horaBloqueioInicio && horaInicio < horaBloqueioFim) ||
+                (horaFim > horaBloqueioInicio && horaFim <= horaBloqueioFim) ||
+                (horaInicio <= horaBloqueioInicio && horaFim >= horaBloqueioFim)
+            ) {
+                return true; // Bloqueio encontrado, impede o agendamento
+            }
+        }
+
+        return false; // Nenhum bloqueio encontrado
+        
+    }
+
+    private static async verificaDataHoraAgendamento(agendamento: SchedulingModel, ehUpdate: boolean, trx?: Knex.Transaction): Promise<void> {
 
         if(!ehUpdate) {
 
-            let existeAgendamento = await this.isSchedulingUserConflict(agendamento.usuario_id, agendamento.data_hora)
+            let existeAgendamento = await this.isSchedulingUserConflict(agendamento.usuario_id, agendamento.data_hora, trx)
     
             if(existeAgendamento) {
                 throw new Error((HTTP_ERRORS.CONFLICT, "Você já possuí agendamento para este dia!"));
             }
         }
 
-        const NaotemVaga = await this.isSchedulingDayConflict(agendamento.cras, agendamento.data_hora);
+        const NaotemVaga = await this.isSchedulingDayConflict(agendamento.cras, agendamento.data_hora, trx);
 
         if(NaotemVaga) {
             throw new Error("Este horário escolhido não está disponível, por favor escolha outro horário!");
@@ -204,7 +270,7 @@ export class Scheduling {
 
     }
 
-    public static async verificaAgendamentosDataBloqueio(diaBloqueio: BloqueioAgendamentoModel): Promise<void> {
+    public static async verificaAgendamentosDataBloqueio(diaBloqueio: BloqueioAgendamentoModel, trx?: Knex.Transaction): Promise<void> {
 
         const newDataHora = new Date(diaBloqueio.data);
         const dataString = newDataHora.toISOString().substring(0, 10);
@@ -230,13 +296,12 @@ export class Scheduling {
                 throw new Error('Tipo de bloqueio inválido');
         }
 
-        const knex = DbInstance.getInstance();
-        const trx = await knex.transaction();
+        const query = trx ? trx("scheduling") : DbInstance.getInstance()("scheduling");
 
         try {
 
             //consulta para verificar os agendamentos que se encontram conflitantes com a data de bloqueio através da horaInicio e horaFim
-            const agendamentos: SchedulingModel[] = await trx("scheduling")
+            const agendamentos: SchedulingModel[] = await query
               .select("*")
               .whereRaw('DATE(data_hora) = ?', [dataString])
               .andWhere('cras', diaBloqueio.cras)
@@ -253,18 +318,15 @@ export class Scheduling {
                 if (agendamentosId.length > 0){
 
                     //atualiza todos os agendamentos que eram conflitantes para o status cancelado devido ao bloqueio da data
-                    await trx("scheduling")
+                    await query
                         .whereIn('id', agendamentosId)
-                        .update({ status: Status.cancelado, description: 'Agendamento cancelado devido a bloqueio da admnistração do CRAS.' });
-                        
-                    trx.commit();
+                        .update({ status: Status.cancelado, description: 'Agendamento cancelado devido a bloqueio da admnistração do CRAS.' });                                           
                 }
 
             }
                     
-        } catch (error) {
-            trx.rollback();
-            throw error;
+        } catch (error) {            
+            throw new Error("Ocorreu um erro interno ao verificar os agendamentos!");
         }
     }
 

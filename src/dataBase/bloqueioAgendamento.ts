@@ -4,6 +4,7 @@ import { Usuario } from "./usuario";
 import { validate as isUUID } from 'uuid';
 import { parseISO, isEqual } from 'date-fns';
 import DbInstance from '../connectionManager';
+import { Knex } from 'knex';
 
 
 export class BloqueioAgendamento { 
@@ -17,10 +18,10 @@ export class BloqueioAgendamento {
         return diasBloqueio;
     }
 
-    public static async getBloqueioAgendamentoById(id: string): Promise<BloqueioAgendamentoModel> {
-        const knex = DbInstance.getInstance();
+    public static async getBloqueioAgendamentoById(id: string, trx?: Knex.Transaction): Promise<BloqueioAgendamentoModel> {
+        const query = trx ? trx('bloqueio_agendamento') : DbInstance.getInstance()('bloqueio_agendamento');
 
-        let diaBloqueio: BloqueioAgendamentoModel = await knex("bloqueio_agendamento").select("*").where("id", id).first();
+        let diaBloqueio: BloqueioAgendamentoModel = await query.select("*").where("id", id).first();
         if(!diaBloqueio) throw new Error("Náo há nenhum dia com bloqueio de agendamento!");
 
         return diaBloqueio;
@@ -45,12 +46,12 @@ export class BloqueioAgendamento {
         try {
 
             for (const bloqueio of bloqueios) {
-                const user = await Usuario.getUserById(bloqueio.usuario_id);
+                const user = await Usuario.getUserById(bloqueio.usuario_id, trx);
                 if (user.tipo_usuario !== TipoUsuario.superAdmin) {
                     throw new Error("Você não tem permissão para bloquear datas para agendamentos!");
                 }
     
-                await Scheduling.verificaAgendamentosDataBloqueio(bloqueio);
+                await Scheduling.verificaAgendamentosDataBloqueio(bloqueio, trx);
     
                 // Insere o bloqueio na tabela dentro da transação
                 await trx("bloqueio_agendamento").insert(bloqueio);
@@ -61,7 +62,7 @@ export class BloqueioAgendamento {
             return msg;
         } catch (error) {
             trx.rollback();
-            throw error;
+            throw new Error("Erro interno ao tentar criar bloqueio de agendamento!");
         }
     }
 
@@ -73,14 +74,14 @@ export class BloqueioAgendamento {
 
         try {
 
-            let diaBloqueioBanco = await this.getBloqueioAgendamentoById(diaBloqueio.id);
+            let diaBloqueioBanco = await this.getBloqueioAgendamentoById(diaBloqueio.id, trx);
 
             if (!diaBloqueioBanco || !diaBloqueioBanco.ativo) {
                 const msgErro = diaBloqueioBanco ? "Este bloqueio já foi cancelado!" : "Esse bloqueio foi excluído ou não existe!";
                 throw new Error(msgErro);
             }
 
-            await this.verificaDataHoraBloqueioAgendamento(diaBloqueio, diaBloqueioBanco);
+            await this.verificaDataHoraBloqueioAgendamento(diaBloqueio, diaBloqueioBanco, trx);
             
             diaBloqueioBanco = { ...diaBloqueioBanco, ...diaBloqueio };
             
@@ -101,13 +102,13 @@ export class BloqueioAgendamento {
         }
     }
 
-    private static async verificaDataHoraBloqueioAgendamento(bloqueioUpdate: BloqueioAgendamentoModel, bloqueioBanco: BloqueioAgendamentoModel ): Promise<void>{
+    private static async verificaDataHoraBloqueioAgendamento(bloqueioUpdate: BloqueioAgendamentoModel, bloqueioBanco: BloqueioAgendamentoModel, trx?: Knex.Transaction ): Promise<void>{
         const dataFormatadaUpdate = new Date(bloqueioUpdate.data);
         const dataFormatadaBanco = new Date(bloqueioBanco.data);
 
         if(!isEqual(dataFormatadaUpdate, dataFormatadaBanco) || bloqueioUpdate.tipo_bloqueio != bloqueioBanco.tipo_bloqueio){
                 
-            await Scheduling.verificaAgendamentosDataBloqueio(bloqueioUpdate);
+            await Scheduling.verificaAgendamentosDataBloqueio(bloqueioUpdate, trx);
         }
     }
 }
