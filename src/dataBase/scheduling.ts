@@ -67,11 +67,8 @@ export class Scheduling {
     }
 
     private static async isSchedulingDayConflict(cras: Cras, data_hora: Date, trx?: Knex.Transaction): Promise<boolean> {
-        // Converter a data para o formato YYYY-MM-DD
-        const newDataHora = new Date(data_hora);
-        const data_hora_iso = newDataHora.toISOString().substring(0, 10);
-         // Obtendo a hora da data
-        const hora = newDataHora.getHours();
+
+        const { inicioIntervalo, fimIntervalo } = this.calcularIntervalo(data_hora);
 
         const query = trx ? trx('scheduling') : DbInstance.getInstance()('scheduling');
 
@@ -79,9 +76,8 @@ export class Scheduling {
             
             const numAgendamentos = await query
             .where('cras', cras)
-            .whereRaw('DATE(data_hora) = ?', [data_hora_iso]) // Filtra pela data
-            .whereRaw('EXTRACT(HOUR FROM data_hora) = ?', [hora]) // Filtra pela hora
             .andWhere('status', Status.pendente)
+            .whereBetween('data_hora', [inicioIntervalo, fimIntervalo]) // validação maxima dos horários papai
             .count({ count: '*' })
             .first();
     
@@ -90,10 +86,13 @@ export class Scheduling {
             }
     
             const numAgendamentosCount = parseInt(String(numAgendamentos.count));
-            const funcionarios: UserModel[] = await Usuario.getFuncionariosByCras(cras);
-            if (!funcionarios || funcionarios.length <= 0) throw new Error('O cras informado é inválido ou não possuí funcionários cadastrados!');
 
-            return numAgendamentosCount >= funcionarios.length;
+            const funcionarios: UserModel[] = await Usuario.getFuncionariosByCras(cras);
+            const atendentes: UserModel[] = funcionarios.filter(f => f.tipo_usuario == 2);
+
+            if (!atendentes || atendentes.length <= 0) throw new Error('O cras informado é inválido ou não possuí funcionários cadastrados!');
+
+            return numAgendamentosCount >= atendentes.length;
 
         } catch (error) {
             console.error('Erro ao executar a consulta:', error);
@@ -114,7 +113,7 @@ export class Scheduling {
 
             // Verifica se há bloqueios para o agendamento
             const existeBloqueio = await this.verificaBloqueioAgendamento(agendamento, trx);
-            //console.log(existeBloqueio)
+
             if (existeBloqueio) {
                 console.error('Não é possível agendar devido a um bloqueio na data e horário!');
                 throw new Error("Não é possível agendar devido a um bloqueio na data e horário!");
@@ -213,8 +212,6 @@ export class Scheduling {
         .andWhereRaw('DATE("data") = ?', [dataString])
         .andWhere('ativo', true); // Somente bloqueios ativos
 
-        console.log(bloqueios)
-
         // Verifica se existe algum bloqueio no mesmo dia
         for (const bloqueio of bloqueios) {
             let horaBloqueioInicio: number;
@@ -253,6 +250,7 @@ export class Scheduling {
 
     private static async verificaDataHoraAgendamento(agendamento: SchedulingModel, ehUpdate: boolean, trx?: Knex.Transaction): Promise<void> {
 
+        //ehUpdate valida se for criação ou atualização de agendamento, só entra no if se for uma criação NOVA.
         if(!ehUpdate) {
 
             let existeAgendamento = await this.isSchedulingUserConflict(agendamento.usuario_id, agendamento.data_hora, trx)
@@ -329,6 +327,25 @@ export class Scheduling {
             throw new Error("Ocorreu um erro interno ao verificar os agendamentos!");
         }
     }
+
+    private static calcularIntervalo(data_hora: string | Date, intervaloMinutos: number = 30) {
+        const newDataHora = new Date(data_hora);   
+        const minutos = newDataHora.getMinutes();
+    
+        // faz o intervalo para 30 min
+        const inicioMinutos = Math.floor(minutos / intervaloMinutos) * intervaloMinutos;
+        const fimMinutos = inicioMinutos + intervaloMinutos;
+    
+        // cria os intervalos como date
+        const inicioIntervalo = new Date(newDataHora);
+        inicioIntervalo.setMinutes(inicioMinutos, 0, 0);
+    
+        const fimIntervalo = new Date(newDataHora);
+        fimIntervalo.setMinutes(fimMinutos, 0, 0);
+    
+        return { inicioIntervalo, fimIntervalo };
+    }
+    
 
     //ESTÁ IMPLEMENTADO APENAS PARA SUPERADMIN, ADMINS DEVEM FAZER SOMENTE EXCLUSÃO LÓGICA COM STATUS 0 'CANCELADO'
     public static async deleteSchedule(id: string): Promise<boolean> {

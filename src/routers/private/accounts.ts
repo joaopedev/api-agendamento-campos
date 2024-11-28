@@ -61,6 +61,27 @@ export = (app: Application) => {
     }
   );
 
+  app.get(
+    '/private/accountByCras/:cras',
+    async (req: Request, res: Response, next: NextFunction) => {
+      let cras_usuario = req.params.cras;
+
+      await Usuario.getFuncionariosByCras(+cras_usuario)
+        .then(conta => {
+
+          if(!conta) return next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS, 'Não foi encontrado nenhum funcionário deste CRAS!'));
+
+          res.json({
+            message: 'Contas recuperadas com sucesso',
+            contas: conta,
+          });
+        })
+        .catch(erro => {
+          next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS, erro));
+        });
+    }
+  );
+
   app.put(
     '/private/updateAccount/:id',
     async (req: Request, res: Response, next: NextFunction) => {
