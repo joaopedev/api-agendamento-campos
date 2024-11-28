@@ -25,7 +25,7 @@ export class Usuario {
     const funcionarios: UserModel[] = await query
       .select('*')
       .where('cras', cras)
-      .andWhereNot('tipo_usuario', TipoUsuario.comum)
+      .andWhere('tipo_usuario', TipoUsuario.admin)
       .orderBy('id');
       
     if (!funcionarios || funcionarios.length <= 0)

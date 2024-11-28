@@ -87,8 +87,7 @@ export class Scheduling {
     
             const numAgendamentosCount = parseInt(String(numAgendamentos.count));
 
-            const funcionarios: UserModel[] = await Usuario.getFuncionariosByCras(cras);
-            const atendentes: UserModel[] = funcionarios.filter(f => f.tipo_usuario == 2);
+            const atendentes: UserModel[] = await Usuario.getFuncionariosByCras(cras);
 
             if (!atendentes || atendentes.length <= 0) throw new Error('O cras informado é inválido ou não possuí funcionários cadastrados!');
 
