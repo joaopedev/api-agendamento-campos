@@ -77,10 +77,11 @@ export class Scheduling {
             const numAgendamentos = await query
             .where('cras', cras)
             .andWhere('status', Status.pendente)
-            .whereBetween('data_hora', [inicioIntervalo, fimIntervalo]) // validação maxima dos horários papai
+            .andWhere('data_hora', '>=', inicioIntervalo)
+            .andWhere('data_hora', '<', fimIntervalo)  // validação maxima dos horários papai
             .count({ count: '*' })
             .first();
-    
+
             if (numAgendamentos === undefined) {
                 throw new Error('Erro ao contar agendamentos.');
             }
