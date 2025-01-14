@@ -18,7 +18,7 @@ export class Usuario {
   public static async getUsersFuncionarios(): Promise<UserModel[]> {
     const knex = DbInstance.getInstance();
 
-    let users = await knex('usuarios').select('*').where("tipo_usuario").andWhere('tipo_usuario', TipoUsuario.admin);
+    let users = await knex('usuarios').select('*').where("tipo_usuario", TipoUsuario.admin);
     if (!users || users.length <= 0)
       throw new Error('Náo há nenhum usuário cadastrado!');
 
