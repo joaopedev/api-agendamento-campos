@@ -28,22 +28,23 @@ export class Usuario {
   public static async getFuncionariosByCras(
     cras: number,
     trx?: Knex.Transaction
-  ): Promise<UserModel[]> {
+  ): Promise<number> {
 
     const query = trx ? trx('usuarios') : DbInstance.getInstance()('usuarios');
 
-    const funcionarios: UserModel[] = await query
-      .select('*')
-      .where('cras', cras)
-      .andWhere('tipo_usuario', TipoUsuario.admin)
-      .orderBy('id');
+    const [{ count }] = await query
+    .count('* as count')
+    .where('cras', cras)
+    .andWhere('tipo_usuario', TipoUsuario.admin);
       
-    if (!funcionarios || funcionarios.length <= 0)
-      throw new Error(
-        `Náo há nenhum funcionário cadastrado no Cras ${Cras[cras]}!`
-      );
+      const totalFuncionarios = Number(count)
 
-    return funcionarios;
+      if (totalFuncionarios <= 0)
+        throw new Error(
+          `Náo há nenhum funcionário no Cras ${Cras[cras]}!`
+        );
+
+    return totalFuncionarios;
   }
 
   public static async getUserById(id: string, trx?: Knex.Transaction): Promise<UserModel> {
