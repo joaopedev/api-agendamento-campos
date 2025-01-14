@@ -15,6 +15,16 @@ export class Usuario {
     return users;
   }
 
+  public static async getUsersFuncionarios(): Promise<UserModel[]> {
+    const knex = DbInstance.getInstance();
+
+    let users = await knex('usuarios').select('*').where("tipo_usuario").andWhere('tipo_usuario', TipoUsuario.admin);
+    if (!users || users.length <= 0)
+      throw new Error('Náo há nenhum usuário cadastrado!');
+
+    return users;
+  }
+
   public static async getFuncionariosByCras(
     cras: number,
     trx?: Knex.Transaction
