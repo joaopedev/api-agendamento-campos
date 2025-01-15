@@ -5,7 +5,7 @@
   "main": "server.js",
   "engines": {
     "node": "18.18.1",
-    "npm": "10.8.1"
+    "npm": "18.18.1"
   },
   "scripts": {
     "dev": "ts-node-dev --inspect --transpile-only --ignore-watch node_modules src/server.ts",
