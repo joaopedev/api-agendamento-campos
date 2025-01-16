@@ -15,11 +15,22 @@ export class Usuario {
     return users;
   }
 
+  public static async getUsersFuncionarios(): Promise<UserModel[]> {
+    const knex = DbInstance.getInstance();
+
+    let users = await knex('usuarios')
+      .select('*')
+      .where('tipo_usuario', TipoUsuario.admin);
+    if (!users || users.length <= 0)
+      throw new Error('Náo há nenhum usuário cadastrado!');
+
+    return users;
+  }
+
   public static async getFuncionariosByCras(
     cras: number,
     trx?: Knex.Transaction
   ): Promise<UserModel[]> {
-
     const query = trx ? trx('usuarios') : DbInstance.getInstance()('usuarios');
 
     const funcionarios: UserModel[] = await query
@@ -27,7 +38,7 @@ export class Usuario {
       .where('cras', cras)
       .andWhere('tipo_usuario', TipoUsuario.admin)
       .orderBy('id');
-      
+
     if (!funcionarios || funcionarios.length <= 0)
       throw new Error(
         `Náo há nenhum funcionário cadastrado no Cras ${Cras[cras]}!`
@@ -36,15 +47,15 @@ export class Usuario {
     return funcionarios;
   }
 
-  public static async getUserById(id: string, trx?: Knex.Transaction): Promise<UserModel> {
+  public static async getUserById(
+    id: string,
+    trx?: Knex.Transaction
+  ): Promise<UserModel> {
     if (!isUUID(id)) throw new Error('ID de usuário inválido!');
 
     const query = trx ? trx('usuarios') : DbInstance.getInstance()('usuarios');
 
-    const user: UserModel = await query
-      .select('*')
-      .where('id', id)
-      .first();
+    const user: UserModel = await query.select('*').where('id', id).first();
     if (!user) throw new Error('Náo há nenhum usuário com este Id!');
 
     return user;
@@ -62,7 +73,10 @@ export class Usuario {
     return user;
   }
 
-  public static async getUserByCpf(cpf: string, trx?: Knex.Transaction): Promise<UserModel> {
+  public static async getUserByCpf(
+    cpf: string,
+    trx?: Knex.Transaction
+  ): Promise<UserModel> {
     const query = trx ? trx('usuarios') : DbInstance.getInstance()('usuarios');
 
     const user = await query.select('*').where('cpf', cpf).first();
@@ -99,18 +113,19 @@ export class Usuario {
 
   public static async updateUser(usuario: UserModel): Promise<UserModel> {
     const idUsuario = usuario.id ?? '';
-    
+
     const knex = DbInstance.getInstance();
     const trx = await knex.transaction();
 
     let userBanco: UserModel = await this.getUserById(idUsuario, trx);
-    
+
     if (!userBanco) throw new Error('O usuário informado não existe!');
 
     let existeCpf: UserModel;
-    if(usuario.cpf) {
+    if (usuario.cpf) {
       existeCpf = await this.getUserByCpf(usuario.cpf, trx);
-      if(existeCpf && existeCpf.cpf != userBanco.cpf) throw new Error('CPF ja existente no sistema!');
+      if (existeCpf && existeCpf.cpf != userBanco.cpf)
+        throw new Error('CPF ja existente no sistema!');
     }
 
     try {
@@ -120,7 +135,7 @@ export class Usuario {
           Scheduling.cancelaUserSchedules(usuarioId);
         }
       }
-      
+
       userBanco = { ...userBanco, ...usuario };
 
       await trx('usuarios').where('id', userBanco.id).first().update(userBanco);
