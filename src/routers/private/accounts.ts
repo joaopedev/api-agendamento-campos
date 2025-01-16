@@ -23,6 +23,22 @@ export = (app: Application) => {
   );
 
   app.get(
+    '/private/accountEmployeer',
+    async (req: Request, res: Response, next: NextFunction) => {
+      await Usuario.getUsersFuncionarios()
+        .then(contas => {
+          res.json({
+            message: 'Contas recuperadas com sucesso',
+            contas: contas,
+          });
+        })
+        .catch(erro => {
+          next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS, erro));
+        });
+    }
+  );
+
+  app.get(
     '/private/accountById/:id',
     async (req: Request, res: Response, next: NextFunction) => {
       let id_usuario = req.params.id;
@@ -47,8 +63,13 @@ export = (app: Application) => {
 
       await Usuario.getUserByCpf(cpf_usuario)
         .then(conta => {
-
-          if(!conta) return next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS, 'Não foi encontrado nenhum usuário com este CPF!'));
+          if (!conta)
+            return next(
+              createError(
+                HTTP_ERRORS.VALIDACAO_DE_DADOS,
+                'Não foi encontrado nenhum usuário com este CPF!'
+              )
+            );
 
           res.json({
             message: 'Conta recuperada com sucesso',
@@ -68,8 +89,13 @@ export = (app: Application) => {
 
       await Usuario.getFuncionariosByCras(+cras_usuario)
         .then(conta => {
-
-          if(!conta) return next(createError(HTTP_ERRORS.VALIDACAO_DE_DADOS, 'Não foi encontrado nenhum funcionário deste CRAS!'));
+          if (!conta)
+            return next(
+              createError(
+                HTTP_ERRORS.VALIDACAO_DE_DADOS,
+                'Não foi encontrado nenhum funcionário deste CRAS!'
+              )
+            );
 
           res.json({
             message: 'Contas recuperadas com sucesso',
@@ -90,22 +116,39 @@ export = (app: Application) => {
       if (!usuario)
         return next(createError(HTTP_ERRORS.BAD_REQUEST, 'Id Invalido!'));
 
-      const propsEnviadas: { [key: string]: any } = req.body;                    //recebe as props da requisição e lê os nomes como key do tipo string
+      const propsEnviadas: { [key: string]: any } = req.body; //recebe as props da requisição e lê os nomes como key do tipo string
 
-      for (const prop in propsEnviadas) {                                        // for que varre as prop da requisição
-        if (Object.hasOwnProperty.call(propsEnviadas, prop)) {                   //validação se a prop do loop se encontra de fato com valor dentro do objeto PAI
-          
-          if(propsEnviadas[prop] === "") 
-            return next(createError(HTTP_ERRORS.ERRO_INTERNO, `A propriedade ${prop} está vazia, por favor insira um valor válido!`));
-          
-          if (prop == 'password' && (propsEnviadas[prop] && propsEnviadas[prop].length > 0) ) {     // validação de prop para password que confere se possui valor
+      for (const prop in propsEnviadas) {
+        // for que varre as prop da requisição
+        if (Object.hasOwnProperty.call(propsEnviadas, prop)) {
+          //validação se a prop do loop se encontra de fato com valor dentro do objeto PAI
+
+          if (propsEnviadas[prop] === '')
+            return next(
+              createError(
+                HTTP_ERRORS.ERRO_INTERNO,
+                `A propriedade ${prop} está vazia, por favor insira um valor válido!`
+              )
+            );
+
+          if (
+            prop == 'password' &&
+            propsEnviadas[prop] &&
+            propsEnviadas[prop].length > 0
+          ) {
+            // validação de prop para password que confere se possui valor
             if (!comparePasswords(req.body.password, usuario.password)) {
               const hashPassword = encodePassword(req.body.password);
               usuario.password = hashPassword;
             }
           }
-          
-          if (usuario.hasOwnProperty(prop) && propsEnviadas[prop] && prop != 'password') {             //validação para atribuir valor a todas as prop do usuario que não seja o password.
+
+          if (
+            usuario.hasOwnProperty(prop) &&
+            propsEnviadas[prop] &&
+            prop != 'password'
+          ) {
+            //validação para atribuir valor a todas as prop do usuario que não seja o password.
             usuario[prop] = propsEnviadas[prop];
           }
         }
