@@ -153,10 +153,7 @@ export class Scheduling {
     // 2) Formata a data e a hora local
     const dataISO = format(zonedDate, 'yyyy-MM-dd', { timeZone });
     const horaMinuto = format(zonedDate, 'HH:mm', { timeZone });
-
-    // console.log(`\n[isSlotFull] CRAS: ${cras}`);
-    // console.log(`[isSlotFull] Data Local: ${dataISO}`);
-    // console.log(`[isSlotFull] Hora Local: ${horaMinuto}`);
+    const hourLocal = Number(format(zonedDate, 'HH', { timeZone }));
 
     try {
       // 3) Consulta no banco para contar agendamentos pendentes no mesmo dia e hora
@@ -174,31 +171,28 @@ export class Scheduling {
         .first();
 
       const totalAgendados = Number(countRow?.total ?? 0);
-      // console.log(`[isSlotFull] Total Agendados no Slot: ${totalAgendados}`);
 
-      // 4) Pega todos do CRAS e filtra apenas usuários tipo 2 (funcionários)
+      // 4) Pega todos os funcionários do CRAS
       const todos: UserModel[] = await Usuario.getFuncionariosByCras(cras);
       const funcionariosTipo2 = todos.filter(
         user => user.tipo_usuario === TipoUsuario.admin
       );
 
-      // console.log(
-      //   `[isSlotFull] Total Funcionários Tipo 2 no CRAS ${cras}: ${funcionariosTipo2.length}`
-      // );
-
       if (funcionariosTipo2.length <= 0) {
         throw new Error(
-          'O CRAS informado é inválido ou não possuí funcionários (tipo 2) cadastrados!'
+          'O CRAS informado é inválido ou não possuí funcionários cadastrados!'
         );
       }
 
-      // 5) Calcula o limite com base somente nos funcionários tipo 2
-      const limiteSlot = 6 * funcionariosTipo2.length;
-      // console.log(`[isSlotFull] Limite de Vagas para o Slot: ${limiteSlot}`);
+      // 5) Calcula o limite com base no horário e no CRAS
+      let limiteSlot = 6 * funcionariosTipo2.length; // Limite padrão
+
+      // Reduz o limite para 2 por funcionário no período da tarde (apenas para CRAS 5 e 6)
+      if (cras === 5 && hourLocal >= 13 && hourLocal < 17) {
+        limiteSlot = 2 * funcionariosTipo2.length;
+      }
 
       const isFull = totalAgendados >= limiteSlot;
-      // console.log(`[isSlotFull] Slot está ${isFull ? 'CHEIO' : 'DISPONÍVEL'}`);
-
       return isFull;
     } catch (error) {
       console.error('Erro ao verificar slot:', error);
