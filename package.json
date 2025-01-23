@@ -26,6 +26,7 @@
     "consign": "^0.1.6",
     "cors": "^2.8.5",
     "date-fns": "^3.6.0",
+    "date-fns-tz": "^3.2.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^7.3.1",
@@ -37,7 +38,9 @@
     "pg": "^8.11.5",
     "rate-limit": "^0.1.1",
     "sqlite3": "^5.1.7",
+    "timezone": "^1.0.23",
     "typescript": "^5.4.5",
+    "utc": "^0.1.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
