@@ -52,6 +52,9 @@ export interface SchedulingModel {
   data_hora: Date;
   cras: Cras;
   status: Status;
+  cpf: string;
+  telefone:string;
+  criador_id: string;
 }
 
 export enum Status {
