@@ -184,10 +184,18 @@ export class Scheduling {
         );
       }
 
-      // 5) Calcula o limite com base no horário e no CRAS
-      let limiteSlot = 6 * funcionariosTipo2.length; // Limite padrão
+      // 5) Calcula o limite de vagas com base no horário
+      let limiteSlot;
 
-      // Reduz o limite para 2 por funcionário no período da tarde (apenas para CRAS 5 e 6)
+      if (hourLocal < 12) {
+        // Slot da manhã (antes de 12:00)
+        limiteSlot = 8 * funcionariosTipo2.length;
+      } else {
+        // Slot da tarde (a partir de 13:00)
+        limiteSlot = 4 * funcionariosTipo2.length;
+      }
+
+      // Reduz o limite para 2 por funcionário no período da tarde (apenas para CRAS 5)
       if (cras === 5 && hourLocal >= 13 && hourLocal < 17) {
         limiteSlot = 2 * funcionariosTipo2.length;
       }
