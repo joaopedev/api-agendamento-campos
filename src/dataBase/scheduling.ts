@@ -221,7 +221,7 @@ export class Scheduling {
     }
 
     const hourLocal = localDate.getHours(); // 0..23
-    if (hourLocal < 8 || hourLocal >= 16) {
+    if (hourLocal < 8 || hourLocal >= 17) {
       throw new Error(
         'Agendamentos somente entre 08:00 e 16:00 (horário local)!'
       );
