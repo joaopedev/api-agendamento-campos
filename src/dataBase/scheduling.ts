@@ -26,23 +26,23 @@ export class Scheduling {
     return agendamentos;
   }
 
-  private static verificaHorarioCriacao(): void {
-    const localString = new Date().toLocaleString('en-US', {
-      timeZone: 'America/Sao_Paulo',
-    });
-    const localDate = new Date(localString);
+  // private static verificaHorarioCriacao(): void {
+  //   const localString = new Date().toLocaleString('en-US', {
+  //     timeZone: 'America/Sao_Paulo',
+  //   });
+  //   const localDate = new Date(localString);
 
-    if (isNaN(localDate.getTime())) {
-      throw new Error('Erro ao calcular o horário local!');
-    }
+  //   if (isNaN(localDate.getTime())) {
+  //     throw new Error('Erro ao calcular o horário local!');
+  //   }
 
-    const hourLocal = localDate.getHours(); // Horário local em 0..23
-    if (hourLocal < 9 || hourLocal >= 24) {
-      throw new Error(
-        'Agendamentos só podem ser criados entre 09:00 e 23:59 (horário local)!'
-      );
-    }
-  }
+  //   const hourLocal = localDate.getHours(); // Horário local em 0..23
+  //   if (hourLocal < 9 || hourLocal >= 24) {
+  //     throw new Error(
+  //       'Agendamentos só podem ser criados entre 09:00 e 23:59 (horário local)!'
+  //     );
+  //   }
+  // }
 
   public static async getSchedulesByCras(
     cras: number
@@ -310,8 +310,8 @@ export class Scheduling {
       throw new Error('Agendamento inválido!');
     }
 
-    // Verifica se a criação do agendamento está dentro do horário permitido
-    this.verificaHorarioCriacao();
+    // // Verifica se a criação do agendamento está dentro do horário permitido
+    // this.verificaHorarioCriacao();
 
     const knex = DbInstance.getInstance();
     const trx = await knex.transaction();
