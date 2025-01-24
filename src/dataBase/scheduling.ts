@@ -189,10 +189,10 @@ export class Scheduling {
 
       if (hourLocal < 12) {
         // Slot da manhã (antes de 12:00)
-        limiteSlot = 8 * funcionariosTipo2.length;
+        limiteSlot = 1 * funcionariosTipo2.length;
       } else {
         // Slot da tarde (a partir de 13:00)
-        limiteSlot = 4 * funcionariosTipo2.length;
+        limiteSlot = 1 * funcionariosTipo2.length;
       }
 
       // Reduz o limite para 2 por funcionário no período da tarde (apenas para CRAS 5)
