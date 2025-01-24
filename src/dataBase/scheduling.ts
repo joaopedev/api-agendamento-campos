@@ -291,9 +291,9 @@ export class Scheduling {
     // Se hora < 12 => força 08:00; senão => força 13:00
     const hour = localDate.getHours();
     if (hour < 12) {
-      localDate.setHours(8, 0, 0, 0);
+      localDate.setHours(11, 0, 0, 0);
     } else {
-      localDate.setHours(13, 0, 0, 0);
+      localDate.setHours(16, 0, 0, 0);
     }
 
     // 2) Converte novamente para UTC
