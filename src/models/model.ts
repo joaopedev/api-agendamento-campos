@@ -53,7 +53,7 @@ export interface SchedulingModel {
   cras: Cras;
   status: Status;
   cpf: string;
-  telefone:string;
+  telefone: string;
   criador_id: string;
 }
 
@@ -101,9 +101,8 @@ export interface BloqueioAgendamentoModel {
   ativo: boolean;
 }
 
-
 //interface para uso do RabbitMq quando for necessário
 export interface QueueMessage {
-  type: string,
-  data: object
+  type: string;
+  data: object;
 }
