@@ -345,6 +345,7 @@ export class Scheduling {
       //     );
       //   }
       // }
+      /////////////////////////////////
 
       // Caso seja tipo 2 ou 3, pode criar em qualquer dia, sem restrição.
 
