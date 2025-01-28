@@ -2,7 +2,6 @@ import {
   UserModel,
   SchedulingModel,
   Cras,
-  HTTP_ERRORS,
   Status,
   TipoUsuario,
   BloqueioAgendamentoModel,
@@ -11,9 +10,20 @@ import { Usuario } from './usuario';
 import { validate as isUUID } from 'uuid';
 import DbInstance from '../connectionManager';
 import { Knex } from 'knex';
+
+// NEW: We import these helpers from date-fns-tz
 import { toZonedTime, format } from 'date-fns-tz';
 
 export class Scheduling {
+  // ---------------------------------------------------------------------------
+  // Helper to get the server's "now" in São Paulo local time
+  // Heroku dynos are on UTC, so "new Date()" is UTC -> we convert to America/Sao_Paulo
+  // ---------------------------------------------------------------------------
+  private static getServerNowSaoPaulo(): Date {
+    const serverNowUtc = new Date(); // the actual server time in UTC
+    return toZonedTime(serverNowUtc, 'America/Sao_Paulo');
+  }
+
   public static async getSchedules(): Promise<SchedulingModel[]> {
     const knex = DbInstance.getInstance();
     const agendamentos: SchedulingModel[] = await knex('scheduling')
@@ -26,17 +36,19 @@ export class Scheduling {
     return agendamentos;
   }
 
+  // ---------------------------------------------------------------------------
+  // Check if the creation is allowed based on the SERVER’s local time (São Paulo).
+  // ---------------------------------------------------------------------------
   private static verificaHorarioCriacao(): void {
-    const localString = new Date().toLocaleString('en-US', {
-      timeZone: 'America/Sao_Paulo',
-    });
-    const localDate = new Date(localString);
+    // Get the server's current local time
+    const localDate = Scheduling.getServerNowSaoPaulo();
 
     if (isNaN(localDate.getTime())) {
-      throw new Error('Erro ao calcular o horário local!');
+      throw new Error('Erro ao calcular o horário local (server time)!');
     }
 
-    const hourLocal = localDate.getHours(); // Horário local em 0..23
+    const hourLocal = localDate.getHours(); // 0..23
+    // Example: limit creation to [09:00, 23:59)
     if (hourLocal < 9 || hourLocal >= 24) {
       throw new Error(
         'Agendamentos só podem ser criados entre 09:00 e 23:59 (horário local)!'
@@ -96,7 +108,7 @@ export class Scheduling {
   }
 
   // ---------------------------------------------------------------------------
-  // Verifica se o usuário já tem agendamento pendente no mesmo DIA local.
+  // Check if the user already has a pending schedule on the same LOCAL day.
   // ---------------------------------------------------------------------------
   private static async isSchedulingUserConflict(
     usuario_id: any,
@@ -107,18 +119,14 @@ export class Scheduling {
       ? trx('scheduling')
       : DbInstance.getInstance()('scheduling');
 
-    // Converte a data UTC para Data local (Brasília)
-    const localString = dateUTC.toLocaleString('en-US', {
-      timeZone: 'America/Sao_Paulo',
-    });
-    const localDate = new Date(localString);
+    // Convert the requested date from UTC to São Paulo local
+    const localDate = toZonedTime(dateUTC, 'America/Sao_Paulo');
 
-    // Extraímos apenas a parte "yyyy-MM-dd" em local
+    // Extract "yyyy-MM-dd" local
     const dataISO = localDate.toISOString().substring(0, 10);
 
     try {
-      // Para comparar no Postgres, convertemos data_hora (que está em UTC)
-      // para o horário de Brasília na cláusula "AT TIME ZONE 'America/Sao_Paulo'"
+      // Compare in Postgres by converting "data_hora" (UTC) to local via AT TIME ZONE
       const existingScheduling = await query
         .where('usuario_id', usuario_id)
         .whereRaw(`DATE(data_hora AT TIME ZONE 'America/Sao_Paulo') = ?`, [
@@ -137,7 +145,7 @@ export class Scheduling {
   }
 
   // ---------------------------------------------------------------------------
-  // Verifica se o slot (dia/hora) atingiu (6 * nºFuncionários), em horário local.
+  // Check if the slot (day/hour) is full, in local time (São Paulo).
   // ---------------------------------------------------------------------------
   private static async isSlotFull(
     cras: Cras,
@@ -147,16 +155,16 @@ export class Scheduling {
     const knexOrTrx = trx || DbInstance.getInstance();
     const timeZone = 'America/Sao_Paulo';
 
-    // 1) Converte data UTC para horário de São Paulo
+    // 1) Convert UTC -> São Paulo
     const zonedDate = toZonedTime(dateUTC, timeZone);
 
-    // 2) Formata a data e a hora local
+    // 2) Extract local date "yyyy-MM-dd" and local time "HH:mm"
     const dataISO = format(zonedDate, 'yyyy-MM-dd', { timeZone });
     const horaMinuto = format(zonedDate, 'HH:mm', { timeZone });
     const hourLocal = Number(format(zonedDate, 'HH', { timeZone }));
 
     try {
-      // 3) Consulta no banco para contar agendamentos pendentes no mesmo dia e hora
+      // 3) Count how many pending schedules on the same local day/hour
       const countRow = await knexOrTrx('scheduling')
         .where('cras', cras)
         .andWhere('status', Status.pendente)
@@ -172,7 +180,7 @@ export class Scheduling {
 
       const totalAgendados = Number(countRow?.total ?? 0);
 
-      // 4) Pega todos os funcionários do CRAS
+      // 4) Get all employees from that CRAS
       const todos: UserModel[] = await Usuario.getFuncionariosByCras(cras);
       const funcionariosTipo2 = todos.filter(
         user => user.tipo_usuario === TipoUsuario.admin
@@ -184,24 +192,23 @@ export class Scheduling {
         );
       }
 
-      // 5) Calcula o limite de vagas com base no horário
+      // 5) Calculate the capacity limit for that slot
       let limiteSlot;
 
       if (hourLocal < 12) {
-        // Slot da manhã (antes de 12:00)
+        // Morning slot
         limiteSlot = 8 * funcionariosTipo2.length;
       } else {
-        // Slot da tarde (a partir de 13:00)
+        // Afternoon slot
         limiteSlot = 4 * funcionariosTipo2.length;
       }
 
-      // Reduz o limite para 2 por funcionário no período da tarde (apenas para CRAS 5)
+      // Special rule: CRAS = 5, from 13..17 limit = 2 * funcionarios
       if (cras === 5 && hourLocal >= 13 && hourLocal < 17) {
         limiteSlot = 2 * funcionariosTipo2.length;
       }
 
-      const isFull = totalAgendados >= limiteSlot;
-      return isFull;
+      return totalAgendados >= limiteSlot;
     } catch (error) {
       console.error('Erro ao verificar slot:', error);
       throw new Error('Erro ao executar a consulta de slot!');
@@ -209,13 +216,11 @@ export class Scheduling {
   }
 
   // ---------------------------------------------------------------------------
-  // Checa se o horário local de Brasília está entre 09:00 e 23:59.
+  // Check if the local time (São Paulo) is between 08:00 and 16:00 only.
   // ---------------------------------------------------------------------------
   private static checaHorarioLocalPermitido(dateUTC: Date): void {
-    const localString = dateUTC.toLocaleString('en-US', {
-      timeZone: 'America/Sao_Paulo',
-    });
-    const localDate = new Date(localString);
+    // Convert the requested scheduling date from UTC -> local
+    const localDate = toZonedTime(dateUTC, 'America/Sao_Paulo');
     if (isNaN(localDate.getTime())) {
       throw new Error('Falha ao converter data para fuso horário local!');
     }
@@ -229,39 +234,31 @@ export class Scheduling {
   }
 
   // ---------------------------------------------------------------------------
-  // Limita o agendamento para HOJE até a sexta da PRÓXIMA semana,
-  // e bloqueia quartas(3), sábados(6) e domingos(0), tudo com base no horário local.
+  // Limit scheduling from TODAY up to next Friday, block Wed(3), Sat(6), Sun(0).
+  // Everything based on SERVER's local time for "today", and the param's local time for chosen date.
   // ---------------------------------------------------------------------------
   private static verificaLimiteAteProximaSexta(dateUTC: Date): void {
-    // 1) Converte param para local
-    const localString = dateUTC.toLocaleString('en-US', {
-      timeZone: 'America/Sao_Paulo',
-    });
-    const dataEscolhida = new Date(localString);
+    // 1) Convert the chosen date from UTC -> local
+    const dataEscolhida = toZonedTime(dateUTC, 'America/Sao_Paulo');
 
-    // 2) Pegamos "hoje" local
-    const hojeString = new Date().toLocaleString('en-US', {
-      timeZone: 'America/Sao_Paulo',
-    });
-    const hoje = new Date(hojeString);
+    // 2) "hoje" local from the server
+    const hoje = Scheduling.getServerNowSaoPaulo();
 
-    // Se dataEscolhida < hoje => erro
+    // If dataEscolhida < hoje => can't schedule in the past
     if (dataEscolhida < hoje) {
       throw new Error('Não é possível agendar no passado!');
     }
 
-    // Bloqueia quartas(3), sábados(6), domingos(0)
+    // Block Wed(3), Sat(6), Sun(0)
     const diaAg = dataEscolhida.getDay();
     if (diaAg === 0 || diaAg === 3 || diaAg === 6) {
       throw new Error('Não é possível agendar para este dia da semana');
     }
 
-    // Calcula a sexta da PRÓXIMA semana em local time
+    // Calculate next Friday (local)
     const dayNow = hoje.getDay(); // 0..6
-    let offset = 12 - dayNow; // se dayNow=3 => offset=9 => +9 dias
-
+    let offset = 12 - dayNow; // if dayNow=3 => offset=9 => +9 days
     if (offset < 0) {
-      // se estiver no fim de semana, ajusta
       offset += 7;
     }
     const ultimaSexta = new Date(hoje);
@@ -275,20 +272,17 @@ export class Scheduling {
   }
 
   // ---------------------------------------------------------------------------
-  // Força o horário local para 09h ou 13h, então converte de volta para UTC.
+  // Force local time to either 11:00 or 16:00, then convert back to UTC in the end.
+  // (You can tweak the hour logic as needed.)
   // ---------------------------------------------------------------------------
   private static forcarSlotManhaOuTarde(dateUTC: Date): Date {
-    // 1) Converte a data UTC para local
-    const localString = dateUTC.toLocaleString('en-US', {
-      timeZone: 'America/Sao_Paulo',
-    });
-    const localDate = new Date(localString);
-
+    // 1) Convert from UTC to local
+    const localDate = toZonedTime(dateUTC, 'America/Sao_Paulo');
     if (isNaN(localDate.getTime())) {
       throw new Error('Data/hora inválida!');
     }
 
-    // Se hora < 12 => força 08:00; senão => força 13:00
+    // If hour < 12 => force 11:00, else => force 16:00
     const hour = localDate.getHours();
     if (hour < 12) {
       localDate.setHours(11, 0, 0, 0);
@@ -296,12 +290,14 @@ export class Scheduling {
       localDate.setHours(16, 0, 0, 0);
     }
 
-    // 2) Converte novamente para UTC
+    // 2) Convert back to UTC (just call new Date(localDate.getTime()))
     return new Date(localDate.getTime());
   }
 
   // ---------------------------------------------------------------------------
-  // Cria um agendamento (salva no DB em UTC).
+  // Create a schedule (save in DB in UTC).
+  // "Now" checks are always from the server time, but the date the user selected
+  // is passed in UTC, then we convert to local to validate.
   // ---------------------------------------------------------------------------
   public static async createSchedule(
     agendamento: SchedulingModel
@@ -310,23 +306,58 @@ export class Scheduling {
       throw new Error('Agendamento inválido!');
     }
 
-    // Verifica se a criação do agendamento está dentro do horário permitido
+    // Verifica se o horário de criação (no servidor) está dentro do intervalo
     this.verificaHorarioCriacao();
 
     const knex = DbInstance.getInstance();
     const trx = await knex.transaction();
 
     try {
-      const usuario = await Usuario.getUserById(agendamento.usuario_id, trx);
-      if (!usuario) {
-        throw new Error('Usuário não encontrado!');
+      // 1) Obter quem será o beneficiário do agendamento (tipo 1?)
+      const usuarioBeneficiario = await Usuario.getUserById(
+        agendamento.usuario_id,
+        trx
+      );
+      if (!usuarioBeneficiario) {
+        throw new Error('Usuário (beneficiário) não encontrado!');
       }
 
-      // 1) Sempre checa se o horário local do agendamento é válido
+      // 2) Obter quem está criando o agendamento (criador_id, que vem do front)
+      const usuarioCriador = await Usuario.getUserById(
+        agendamento.criador_id,
+        trx
+      );
+      if (!usuarioCriador) {
+        throw new Error('Criador do agendamento não encontrado!');
+      }
+
+      // ---------------------------------------------------------------------
+      // [A] Verificar se o criador (quem está logado) só pode criar na sexta (tipo 1)
+      // ou pode criar em qualquer dia (tipo 2 ou 3).
+      // ---------------------------------------------------------------------
+      const agoraLocal = Scheduling.getServerNowSaoPaulo(); // dia/hora local do servidor
+      if (usuarioCriador.tipo_usuario === TipoUsuario.comum) {
+        // Tipo 1 (comum) pode CRIAR agendamentos apenas na sexta
+        if (agoraLocal.getDay() !== 5) {
+          throw new Error(
+            'Agendamentos só podem serem criados nas sextas-feiras entre 9:00 e 23:59!'
+          );
+        }
+      }
+      // Caso seja tipo 2 ou 3, pode criar em qualquer dia, sem restrição.
+
+      // ---------------------------------------------------------------------
+      // [B] Independente de quem criou, verificar as regras de quem RECEBE (beneficiário).
+      // Somente se o beneficiário for tipo 1, aplicamos regras de:
+      //  - "só até próxima sexta"
+      //  - "1 pendente por dia"
+      //  - "slot cheio" etc.
+      // ---------------------------------------------------------------------
+      // Sempre checar se a data/hora para o agendamento está no horário permitido
       this.checaHorarioLocalPermitido(agendamento.data_hora);
 
-      if (usuario.tipo_usuario === TipoUsuario.comum) {
-        // Regras específicas para usuários comuns
+      // Se o beneficiário for tipo 1, aplicamos restrições específicas:
+      if (usuarioBeneficiario.tipo_usuario === TipoUsuario.comum) {
         this.verificaLimiteAteProximaSexta(agendamento.data_hora);
 
         const dataCorrigida = this.forcarSlotManhaOuTarde(
@@ -334,12 +365,14 @@ export class Scheduling {
         );
 
         const conflito = await this.isSchedulingUserConflict(
-          usuario.id,
+          usuarioBeneficiario.id,
           dataCorrigida,
           trx
         );
         if (conflito) {
-          throw new Error('Você já possuí agendamento pendente para este dia!');
+          throw new Error(
+            'Este usuário já possui agendamento pendente para este dia!'
+          );
         }
 
         const slotCheio = await this.isSlotFull(
@@ -355,13 +388,19 @@ export class Scheduling {
 
         agendamento.data_hora = dataCorrigida;
       } else {
-        // Tipo 2/3: Sem restrição de datas, mas força slot local
+        // Se por algum motivo um funcionário (tipo 2) fosse receber agendamento,
+        // ou um admin (tipo 3) — normalmente não acontece na sua regra,
+        // mas se acontecer, aqui você define se aplica alguma regra ou não.
+        // Por enquanto, "forçamos" apenas para ter um horário fixo (manhã/tarde).
         const dataCorrigida = this.forcarSlotManhaOuTarde(
           agendamento.data_hora
         );
         agendamento.data_hora = dataCorrigida;
       }
 
+      // ---------------------------------------------------------------------
+      // Por fim, inserir no DB (agendamento.data_hora em UTC)
+      // ---------------------------------------------------------------------
       await trx('scheduling').insert(agendamento);
       await trx.commit();
       return agendamento;
@@ -372,7 +411,7 @@ export class Scheduling {
   }
 
   // ---------------------------------------------------------------------------
-  // Atualiza um agendamento
+  // Update a schedule
   // ---------------------------------------------------------------------------
   public static async updateSchedule(
     agendamento: SchedulingModel
@@ -398,12 +437,12 @@ export class Scheduling {
         throw new Error('Não é possível alterar um agendamento já concluído!');
       }
 
-      // Ver se data/hora mudou
+      // Compare old vs new date/hora
       const oldDataISO = new Date(agendamentoBanco.data_hora).toISOString();
       const newDataISO = new Date(agendamento.data_hora).toISOString();
       const mudouDataHora = oldDataISO !== newDataISO;
 
-      // Checa se o dono do agendamento é tipo 1
+      // Check the user
       const usuario = await Usuario.getUserById(agendamento.usuario_id, trx);
       if (!usuario) {
         throw new Error('Usuário não encontrado!');
@@ -445,10 +484,11 @@ export class Scheduling {
             data_hora: dataCorrigida,
           };
         } else {
+          // If the time didn't change, just merge data
           agendamentoBanco = { ...agendamentoBanco, ...agendamento };
         }
       } else {
-        // Tipo 2/3 => sem restrição de datas, mas forçamos 09h/13h
+        // Tipo 2/3 => no date restriction, but still force slot
         if (mudouDataHora) {
           const dataCorrigida = this.forcarSlotManhaOuTarde(
             agendamento.data_hora
@@ -500,7 +540,7 @@ export class Scheduling {
   }
 
   // ---------------------------------------------------------------------------
-  // Verifica se existe bloqueio de agendamento para data/hora local
+  // Check if there's a scheduling block for that local date/time
   // ---------------------------------------------------------------------------
   public static async verificaBloqueioAgendamento(
     agendamento: SchedulingModel,
@@ -510,22 +550,18 @@ export class Scheduling {
       ? trx('bloqueio_agendamento')
       : DbInstance.getInstance()('bloqueio_agendamento');
 
-    // 1) Converte a data UTC para local
-    const localString = agendamento.data_hora.toLocaleString('en-US', {
-      timeZone: 'America/Sao_Paulo',
-    });
-    const localDate = new Date(localString);
+    // Convert param UTC -> local
+    const localDate = toZonedTime(agendamento.data_hora, 'America/Sao_Paulo');
 
-    // Dia "yyyy-mm-dd" local
+    // Local "yyyy-MM-dd"
     const dataString = localDate.toISOString().substring(0, 10);
 
-    // Hora e duração (em local time)
+    // local hour start/end
     const horaInicio = localDate.getHours();
     const duracao = agendamento.duracao_atendimento || 60;
     const horaFim = horaInicio + Math.floor(duracao / 60);
 
-    // 2) No DB, se o campo "data" de bloqueio também for UTC, convertemos:
-    //    'DATE("data" AT TIME ZONE 'America/Sao_Paulo') = ?'
+    // Find all blocks for this CRAS that day
     const bloqueios: BloqueioAgendamentoModel[] = await query
       .where('cras', agendamento.cras)
       .andWhereRaw(`DATE("data" AT TIME ZONE 'America/Sao_Paulo') = ?`, [
@@ -554,33 +590,32 @@ export class Scheduling {
           throw new Error('Tipo de bloqueio inválido');
       }
 
-      // Verifica se o horário local do agendamento conflita com o bloqueio
+      // If the schedule intersects the block window => blocked
       if (
         (horaInicio >= horaBloqueioInicio && horaInicio < horaBloqueioFim) ||
         (horaFim > horaBloqueioInicio && horaFim <= horaBloqueioFim) ||
         (horaInicio <= horaBloqueioInicio && horaFim >= horaBloqueioFim)
       ) {
-        return true; // Bloqueado
+        return true; // blocked
       }
     }
     return false;
   }
 
   // ---------------------------------------------------------------------------
-  // Se houver bloqueio, cancela agendamentos pendentes no período/local.
+  // If there's a block on a certain day, we cancel all pending schedules
+  // in that day/time range for that CRAS.
   // ---------------------------------------------------------------------------
   public static async verificaAgendamentosDataBloqueio(
     diaBloqueio: BloqueioAgendamentoModel,
     trx?: Knex.Transaction
   ): Promise<void> {
-    // newDataHora: assumindo que 'diaBloqueio.data' está em UTC
+    // 'diaBloqueio.data' is presumably UTC
     const newDataHora = new Date(diaBloqueio.data);
-    const localString = newDataHora.toLocaleString('en-US', {
-      timeZone: 'America/Sao_Paulo',
-    });
-    const localDate = new Date(localString);
+    // Convert to local
+    const localDate = toZonedTime(newDataHora, 'America/Sao_Paulo');
 
-    // Data local "yyyy-mm-dd"
+    // Local "yyyy-mm-dd"
     const dataString = localDate.toISOString().substring(0, 10);
 
     let horaInicio: string;
@@ -608,8 +643,7 @@ export class Scheduling {
       : DbInstance.getInstance()('scheduling');
 
     try {
-      // Precisamos comparar data_hora em UTC com local = dataString
-      // e também ver se a hora local está entre [horaInicio, horaFim].
+      // Compare data_hora in local to dataString + hour range
       const agendamentos: SchedulingModel[] = await query
         .select('*')
         .whereRaw(`DATE(data_hora AT TIME ZONE 'America/Sao_Paulo') = ?`, [
@@ -618,7 +652,6 @@ export class Scheduling {
         .andWhere('cras', diaBloqueio.cras)
         .andWhere('status', Status.pendente)
         .andWhere(builder => {
-          // Aqui usamos EXTRACT com AT TIME ZONE
           builder
             .whereRaw(
               `EXTRACT(HOUR FROM data_hora AT TIME ZONE 'America/Sao_Paulo') >= ?`,
@@ -633,7 +666,7 @@ export class Scheduling {
       if (agendamentos.length > 0) {
         const agendamentosId: string[] = agendamentos.map(a => String(a.id));
         if (agendamentosId.length > 0) {
-          // atualiza todos para cancelado
+          // Cancel all those
           await query.whereIn('id', agendamentosId).update({
             status: Status.cancelado,
             description:
@@ -647,7 +680,7 @@ export class Scheduling {
   }
 
   // ---------------------------------------------------------------------------
-  // Exclusão física do agendamento (apenas para superadmin).
+  // Physical deletion (superadmin only).
   // ---------------------------------------------------------------------------
   public static async deleteSchedule(id: string): Promise<boolean> {
     const agendamento = await this.getScheduleById(id);
@@ -667,7 +700,7 @@ export class Scheduling {
   }
 
   // ---------------------------------------------------------------------------
-  // Deleta todos os agendamentos de um usuário (exclusão física).
+  // Delete all schedules of a user (physical removal).
   // ---------------------------------------------------------------------------
   public static async deleteUserSchedules(
     usuario_id: string
