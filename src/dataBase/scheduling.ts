@@ -337,15 +337,18 @@ export class Scheduling {
       // [A] Verificar se o criador (quem está logado) só pode criar na sexta (tipo 1)
       // ou pode criar em qualquer dia (tipo 2 ou 3).
       // ---------------------------------------------------------------------
-      const agoraLocal = Scheduling.getServerNowSaoPaulo(); // dia/hora local do servidor
-      if (usuarioCriador.tipo_usuario === TipoUsuario.comum) {
-        // Tipo 1 (comum) pode CRIAR agendamentos apenas na sexta
-        if (agoraLocal.getDay() !== 5) {
-          throw new Error(
-            'Agendamentos só podem serem criados nas sextas-feiras entre 9:00 e 23:59!'
-          );
-        }
-      }
+
+      // const agoraLocal = Scheduling.getServerNowSaoPaulo(); // dia/hora local do servidor
+      // if (usuarioCriador.tipo_usuario === TipoUsuario.comum) {
+      //   // Tipo 1 (comum) pode CRIAR agendamentos apenas na sexta
+      //   if (agoraLocal.getDay() !== 5) {
+      //     throw new Error(
+      //       'Agendamentos só podem serem criados nas sextas-feiras entre 9:00 e 23:59!'
+      //     );
+      //   }
+      // }
+      /////////////////////////////////
+
       // Caso seja tipo 2 ou 3, pode criar em qualquer dia, sem restrição.
 
       // ---------------------------------------------------------------------
@@ -358,7 +361,7 @@ export class Scheduling {
       // Sempre checar se a data/hora para o agendamento está no horário permitido
       this.checaHorarioLocalPermitido(agendamento.data_hora);
 
-      // Se o beneficiário for tipo 1, aplicamos restrições específicas:
+      // Se o usuário for tipo 1, aplicamos restrições específicas:
       if (usuarioBeneficiario.tipo_usuario === TipoUsuario.comum) {
         this.verificaLimiteAteProximaSexta(agendamento.data_hora);
 
