@@ -211,7 +211,9 @@ export class Scheduling {
       return totalAgendados >= limiteSlot;
     } catch (error) {
       console.error('Erro ao verificar slot:', error);
-      throw new Error('Erro ao executar a consulta de slot!');
+      throw new Error(
+        'Erro ao executar a consulta de disponibilidade de vagas!'
+      );
     }
   }
 
@@ -382,7 +384,7 @@ export class Scheduling {
         );
         if (slotCheio) {
           throw new Error(
-            'Este slot está indisponível, limite de vagas atingido!'
+            'Não há vagas disponíveis para o período selecionado!'
           );
         }
 
@@ -474,7 +476,7 @@ export class Scheduling {
           );
           if (slotCheio) {
             throw new Error(
-              'Este slot está indisponível, limite de vagas atingido!'
+              'Não há vagas disponíveis para o período selecionado!'
             );
           }
 
@@ -669,8 +671,7 @@ export class Scheduling {
           // Cancel all those
           await query.whereIn('id', agendamentosId).update({
             status: Status.cancelado,
-            description:
-              'Agendamento cancelado devido a bloqueio da administração do CRAS.',
+            description: 'Agendamento cancelado. Motivo: bloqueio interno.',
           });
         }
       }
