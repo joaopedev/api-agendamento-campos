@@ -259,7 +259,7 @@ export class Scheduling {
 
     // Calculate next Friday (local)
     const dayNow = hoje.getDay(); // 0..6
-    let offset = 12 - dayNow; // if dayNow=3 => offset=9 => +9 days
+    let offset = 13 - dayNow; // if dayNow=3 => offset=9 => +9 days
     if (offset < 0) {
       offset += 7;
     }
